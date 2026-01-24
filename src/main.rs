@@ -64,6 +64,12 @@ enum CtfCommands {
     Solve {
         /// The flag value
         flag: String,
+        /// Create a new challenge on the fly (format: <category>/<name>)
+        #[arg(long, short = 'c')]
+        create: Option<String>,
+        /// Optional description/writeup to append to notes.md
+        #[arg(long, short = 'd')]
+        desc: Option<String>,
     },
     /// Add a new challenge to current event
     Add {
@@ -297,8 +303,8 @@ fn main() -> Result<()> {
             CtfCommands::Import { file, category } => {
                 ctf::import_challenge(&config, file, category.clone())?;
             }
-            CtfCommands::Solve { flag } => {
-                ctf::solve_challenge(&config, &flag)?;
+            CtfCommands::Solve { flag, create, desc } => {
+                ctf::solve_challenge(&config, &flag, create.clone(), desc.clone())?;
             }
             CtfCommands::Add { path } => {
                 ctf::add_challenge(&config, path)?;

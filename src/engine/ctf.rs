@@ -744,8 +744,55 @@ pub fn get_event_path(
     Ok(event_path)
 }
 
-pub fn solve_challenge(config: &Config, flag: &str) -> Result<()> {
-    let current_dir = std::env::current_dir()?;
+pub fn solve_challenge(
+    config: &Config,
+    flag: &str,
+    create: Option<String>,
+    desc: Option<String>,
+) -> Result<()> {
+    let current_dir = if let Some(path_str) = create {
+        // Mode 1: Create on the fly
+        let event_root = get_active_event_root()?;
+        let parts: Vec<&str> = path_str.split('/').collect();
+
+        let (category, name) = if parts.len() == 2 {
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            // Check if we are inside a category directory
+            let cwd = std::env::current_dir()?;
+            if let Some(parent) = cwd.parent() {
+                if parent == event_root {
+                    let cat_name = cwd.file_name().unwrap().to_string_lossy().to_string();
+                    (cat_name, parts[0].to_string())
+                } else {
+                    anyhow::bail!(
+                        "Invalid format. Use <category>/<name> or run inside a category folder."
+                    );
+                }
+            } else {
+                anyhow::bail!("Invalid format. Use <category>/<name>");
+            }
+        };
+
+        let category_dir = event_root.join(&category);
+        if !category_dir.exists() {
+            fs::create_dir(&category_dir)?;
+        }
+
+        let challenge_dir = category_dir.join(&name);
+        if !challenge_dir.exists() {
+            fs::create_dir(&challenge_dir)?;
+            println!("Created challenge: {}/{}", category, name);
+        }
+
+        // We MUST change directory to the challenge dir for the rest of the logic to work
+        std::env::set_current_dir(&challenge_dir)?;
+        challenge_dir
+    } else {
+        // Mode 2: Existing challenge (CWD)
+        std::env::current_dir()?
+    };
+
     let dir_name = current_dir
         .file_name()
         .and_then(|n| n.to_str())
@@ -755,6 +802,20 @@ pub fn solve_challenge(config: &Config, flag: &str) -> Result<()> {
     let flag_path = current_dir.join("flag.txt");
     fs::write(&flag_path, flag)?;
     println!("✓ Saved flag to {:?}", flag_path);
+
+    // 1.5 Write Description if provided
+    if let Some(description) = desc {
+        let notes_path = current_dir.join("notes.md");
+        let header = "\n\n## Description\n\n";
+
+        use std::io::Write;
+        let mut file = fs::File::options()
+            .create(true)
+            .append(true)
+            .open(&notes_path)?;
+        write!(file, "{}{}", header, description)?;
+        println!("✓ Appended description to notes.md");
+    }
 
     // 2. Scan for solution script (convention: solve.*)
     let mut solution_script = None;
