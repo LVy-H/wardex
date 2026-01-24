@@ -554,25 +554,7 @@ fn handle_config_command(
                 );
             }
 
-            let default_config = r#"paths:
-  workspace: ~/workspace
-  inbox: ~/workspace/0_Inbox
-  projects: ~/workspace/1_Projects
-  areas: ~/workspace/2_Areas
-  resources: ~/workspace/3_Resources
-  archives: ~/workspace/4_Archives
-
-organize:
-  ctf_dir: projects/CTFs
-
-ctf:
-  default_categories:
-    - web
-    - pwn
-    - crypto
-    - rev
-    - misc
-"#;
+            let default_config = wardex::core::templates::DEFAULT_CONFIG;
 
             fs_err::write(&config_file, default_config)?;
             println!("✓ Config initialized at: {:?}", config_file);

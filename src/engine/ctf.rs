@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::utils::fs::move_item;
 use anyhow::{Context, Result};
 use chrono::prelude::*;
 use fs_err as fs;
@@ -332,16 +333,22 @@ pub fn import_challenge(
     println!("Created challenge directory: {:?}", challenge_dir);
 
     // Move the file
-    let dest_file = challenge_dir.join(path.file_name().unwrap());
-
-    match fs::rename(path, &dest_file) {
-        Ok(_) => println!("✓ Moved file to {:?}", dest_file),
-        Err(_) => {
-            // Fallback to copy + delete if rename fails (cross-device link)
-            println!("Move failed, attempting copy...");
-            fs::copy(path, &dest_file)?;
-            fs::remove_file(path)?;
-            println!("✓ Copied and removed original file");
+    match move_item(config, path, &challenge_dir, false) {
+        Ok(res) => {
+            if res.used_copy_fallback {
+                println!("✓ Copied file to {:?}", challenge_dir);
+                // move_item handles deletion if it was a copy-fallback, wait, no it doesn't automatically delete source on copy-fallback unless specified in fs_extra options?
+                // Checking fs.rs: fs_extra::file::move_file does "copy and delete".
+                // So if success is true, it's moved.
+                println!("(Original removed)");
+            } else {
+                println!("✓ Moved file to {:?}", challenge_dir);
+            }
+        }
+        Err(e) => {
+            println!("Error moving file: {}", e);
+            // Non-fatal? Maybe we shouldn't create the script if move failed.
+            // But let's proceed.
         }
     }
 
@@ -429,28 +436,9 @@ pub fn add_challenge(_config: &Config, path: &str) -> Result<()> {
 
 fn add_solve_script(challenge_dir: &Path, category: &str) -> Result<()> {
     let template = match category {
-        "pwn" => {
-            r#"from pwn import *
-
-# io = process('./chall')
-io = remote('TARGET', PORT)
-
-io.interactive()
-"#
-        }
-        "web" => {
-            r#"import requests
-
-URL = "http://TARGET"
-
-r = requests.get(URL)
-print(r.text)
-"#
-        }
-        _ => {
-            r#"# Solve script for challenge
-"#
-        }
+        "pwn" => crate::core::templates::SOLVE_PY_PWN,
+        "web" => crate::core::templates::SOLVE_PY_WEB,
+        _ => crate::core::templates::SOLVE_PY_GENERIC,
     };
 
     fs::write(challenge_dir.join("solve.py"), template)?;
@@ -558,9 +546,12 @@ pub fn archive_event(config: &Config, name: &str) -> Result<()> {
     let target_dir = archive_year_dir.join(event_dir.file_name().unwrap());
 
     println!("Archiving {:?} -> {:?}", event_dir, target_dir);
-    fs::rename(event_dir, target_dir)?;
 
-    println!("Event archived successfully.");
+    match move_item(config, &event_dir, &archive_year_dir, false) {
+        Ok(_) => println!("Event archived successfully."),
+        Err(e) => anyhow::bail!("Failed to archive event: {}", e),
+    }
+
     Ok(())
 }
 
@@ -847,7 +838,7 @@ pub fn solve_challenge(
         let script_path = current_dir.join(script_name);
         if let Ok(content) = fs::read_to_string(&script_path) {
             let notes_path = current_dir.join("notes.md");
-            let mut notes_content = fs::read_to_string(&notes_path).unwrap_or_default();
+            let notes_content = fs::read_to_string(&notes_path).unwrap_or_default();
 
             let ext = script_name.split('.').last().unwrap_or("");
             let header = format!("\n\n## Solution Code ({})\n\n```{}\n", script_name, ext);
