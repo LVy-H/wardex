@@ -80,11 +80,9 @@ pub fn get_stats(config: &Config) -> Result<WorkspaceStats> {
                     *guard.2.entry(ext).or_insert(0) += 1;
                 }
             }
-        } else if path.is_dir() {
-            if path.join(".git").exists() {
-                let mut repos = repos_count.lock().unwrap();
-                *repos += 1;
-            }
+        } else if path.is_dir() && path.join(".git").exists() {
+            let mut repos = repos_count.lock().unwrap();
+            *repos += 1;
         }
     }
 

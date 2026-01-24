@@ -840,7 +840,7 @@ pub fn solve_challenge(
             let notes_path = current_dir.join("notes.md");
             let notes_content = fs::read_to_string(&notes_path).unwrap_or_default();
 
-            let ext = script_name.split('.').last().unwrap_or("");
+            let ext = script_name.split('.').next_back().unwrap_or("");
             let header = format!("\n\n## Solution Code ({})\n\n```{}\n", script_name, ext);
             let footer = "\n```\n";
 

@@ -417,10 +417,7 @@ fn main() -> Result<()> {
                 return Ok(());
             }
 
-            println!(
-                "\n{:<25} {:<12} {:<15} {}",
-                "Project", "State", "Sync", "Path"
-            );
+            println!("\n{:<25} {:<12} {:<15} Path", "Project", "State", "Sync");
             println!("{}", "-".repeat(80));
 
             for repo in &report.repos {

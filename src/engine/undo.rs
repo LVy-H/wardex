@@ -72,7 +72,7 @@ pub fn undo_last(config: &Config, count: usize) -> Result<UndoReport> {
 
     let file = std::fs::File::open(&log_path)?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
+    let lines: Vec<String> = reader.lines().map_while(|l| l.ok()).collect();
 
     if lines.is_empty() {
         return Ok(UndoReport {

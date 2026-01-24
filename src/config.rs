@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Config {
     pub paths: Paths,
     #[serde(default)]
@@ -13,17 +13,6 @@ pub struct Config {
     pub organize: Organize,
     #[serde(default)]
     pub ctf: CtfConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            paths: Paths::default(),
-            rules: Rules::default(),
-            organize: Organize::default(),
-            ctf: CtfConfig::default(),
-        }
-    }
 }
 
 /// Explicit path configuration

@@ -21,10 +21,8 @@ pub fn move_item(
     dest_dir: &Path,
     dry_run: bool,
 ) -> Result<MoveResult> {
-    if !dest_dir.exists() {
-        if !dry_run {
-            fs_err::create_dir_all(dest_dir).context("Failed to create destination directory")?;
-        }
+    if !dest_dir.exists() && !dry_run {
+        fs_err::create_dir_all(dest_dir).context("Failed to create destination directory")?;
     }
 
     let file_name = src.file_name().context("Invalid source path")?;
