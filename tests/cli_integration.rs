@@ -312,6 +312,7 @@ fn test_ctf_import_with_category_flag_and_move() {
         import_file.to_str().unwrap(),
         "--category",
         "misc",
+        "--auto",
     ])
     .assert()
     .success();
@@ -446,4 +447,218 @@ fn test_ctf_global_state() {
         .assert()
         .success()
         .stdout(predicate::str::contains("GlobalEvent"));
+}
+
+#[test]
+fn test_ctf_schedule_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "SchedEvent", "--start", "2026-03-01 10:00", "--end", "2026-03-03 18:00"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("SchedEvent"))
+        .unwrap()
+        .path();
+    
+    let meta_content = fs::read_to_string(event_dir.join(".ctf_meta.json")).unwrap();
+    assert!(meta_content.contains("start_time"));
+    assert!(meta_content.contains("end_time"));
+
+    env.cmd()
+        .args(&["ctf", "schedule", "--end", "2026-03-05 18:00"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Updated schedule"));
+}
+
+#[test]
+fn test_ctf_finish_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "FinishEvent"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("FinishEvent"))
+        .unwrap()
+        .path();
+
+    // Init git repo to make git commands succeed
+    std::process::Command::new("git")
+        .arg("init")
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(&["config", "user.name", "Test User"])
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(&["config", "user.email", "test@example.com"])
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+
+    // Test dry run
+    env.cmd()
+        .args(&["ctf", "finish", "--dry-run"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Would commit all changes and archive event."));
+
+    // Test actual finish
+    env.cmd()
+        .args(&["ctf", "finish", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Successfully finished event"));
+
+    let archives_dir = env.path().join("4_Archives/CTFs");
+    assert!(fs::read_dir(&archives_dir).unwrap().count() > 0);
+}
+
+#[test]
+fn test_ctf_check_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "ExpiredEvent", "--start", "2020-01-01 10:00", "--end", "2020-01-02 10:00"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(&["ctf", "check"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Expired Events"))
+        .stdout(predicate::str::contains("ExpiredEvent"));
+}
+
+#[test]
+fn test_ctf_path_fuzzy_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "SuperSecretCTF2026"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(&["ctf", "path", "supersec"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("SuperSecretCTF2026"));
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("SuperSecretCTF2026"))
+        .unwrap()
+        .path();
+    
+    fs::create_dir_all(event_dir.join("pwn/buffer-overflow")).unwrap();
+
+    env.cmd()
+        .args(&["ctf", "path", "pwn/buffer-overflow"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("buffer-overflow"));
+}
+
+#[test]
+fn test_ctf_status_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "StatusEvent"])
+        .assert()
+        .success();
+
+    // 1. Create a challenge that remains active
+    env.cmd()
+        .args(&["ctf", "add", "web/active-chal"])
+        .assert()
+        .success();
+
+    // 2. Create another challenge and solve it
+    env.cmd()
+        .args(&["ctf", "add", "pwn/solved-chal"])
+        .assert()
+        .success();
+    
+    // We have to navigate into the challenge dir to solve it properly (per how solve works)
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("StatusEvent"))
+        .unwrap()
+        .path();
+
+    // Init git repo to make git commands succeed inside solve
+    std::process::Command::new("git")
+        .arg("init")
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(&["config", "user.name", "Test User"])
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(&["config", "user.email", "test@example.com"])
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    // Create an initial commit so adding works 
+    std::process::Command::new("git")
+        .args(&["commit", "--allow-empty", "-m", "init"])
+        .current_dir(&event_dir)
+        .output()
+        .unwrap();
+    
+    let mut cmd = env.cmd();
+    cmd.env("RUST_BACKTRACE", "1");
+    cmd.current_dir(&event_dir.join("pwn/solved-chal"));
+    let output = cmd.args(&["ctf", "solve", "flag{test}"])
+        .output()
+        .unwrap();
+    
+    if !output.status.success() {
+        panic!("Solve failed");
+    }
+
+    // 3. Verify status output
+    env.cmd()
+        .args(&["ctf", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("active-chal"))
+        .stdout(predicate::str::contains("solved-chal"))
+        .stdout(predicate::str::contains("Active"))
+        .stdout(predicate::str::contains("Solved"));
 }

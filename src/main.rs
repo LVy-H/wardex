@@ -46,6 +46,10 @@ enum CtfCommands {
         name: String,
         #[arg(long, help = "YYYY-MM-DD")]
         date: Option<String>,
+        #[arg(long, help = "Start time (e.g. '2025-01-01' or '2025-01-01 10:00')")]
+        start: Option<String>,
+        #[arg(long, help = "End time (e.g. '2025-01-03 18:00')")]
+        end: Option<String>,
     },
     /// List CTF events
     List,
@@ -53,12 +57,12 @@ enum CtfCommands {
     Import {
         #[arg(help = "Path to challenge zip/tar")]
         file: PathBuf,
-        #[arg(
-            short,
-            long,
-            help = "Category (web, pwn, etc.) - skips interactive prompt"
-        )]
+        #[arg(short, long, help = "Category (web, pwn, etc.)")]
         category: Option<String>,
+        #[arg(short, long, help = "Challenge name (overrides filename)")]
+        name: Option<String>,
+        #[arg(long, help = "Skip all prompts, auto-infer everything")]
+        auto: bool,
     },
     /// Solve a challenge (commit, flag, compress, archive)
     Solve {
@@ -97,6 +101,46 @@ enum CtfCommands {
         #[arg(help = "Event name/path to activate")]
         event: String,
     },
+    /// Schedule or reschedule an event (add start/end times)
+    Schedule {
+        #[arg(help = "Event name (optional, uses active context otherwise)")]
+        event: Option<String>,
+        #[arg(long, help = "Start time (e.g. '2025-01-01 10:00')")]
+        start: Option<String>,
+        #[arg(long, help = "End time (e.g. '2025-01-03 18:00')")]
+        end: Option<String>,
+    },
+    /// Clean up, commit, compress, and optionally archive an event
+    Finish {
+        #[arg(help = "Event name (optional, uses active context otherwise)")]
+        event: Option<String>,
+        #[arg(long, help = "Skip final archive step, just cleanup and commit")]
+        no_archive: bool,
+        #[arg(long, short, help = "Skip cleanup prompts (auto-confirm)")]
+        force: bool,
+        #[arg(long, help = "Show what would be cleaned without doing it")]
+        dry_run: bool,
+    },
+    /// Check for expired or soon-to-expire events
+    Check,
+    /// Detailed status of challenges (Active vs Solved)
+    Status,
+}
+
+fn parse_fuzzy_time(time_str: &str) -> Option<i64> {
+    use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+
+    // Try YYYY-MM-DD HH:MM
+    if let Ok(dt) = NaiveDateTime::parse_from_str(time_str, "%Y-%m-%d %H:%M") {
+        return Local.from_local_datetime(&dt).single().map(|d| d.timestamp());
+    }
+    // Try YYYY-MM-DD
+    if let Ok(d) = NaiveDate::parse_from_str(time_str, "%Y-%m-%d") {
+        let dt = d.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+        return Local.from_local_datetime(&dt).single().map(|d| d.timestamp());
+    }
+
+    None
 }
 
 #[derive(Subcommand)]
@@ -255,9 +299,23 @@ fn main() -> Result<()> {
                 report.errors.len()
             );
         }
-        Commands::Ctf { command } => match command {
-            CtfCommands::Init { name, date } => {
-                let result = ctf::create_event(&config, name, date.clone())?;
+        Commands::Ctf { command } => {
+            if !matches!(command, CtfCommands::Check | CtfCommands::List) {
+                ctf::check_active_expiry(&config);
+            }
+            match command {
+            CtfCommands::Init { name, date, start, end } => {
+                let start_ts = start.as_deref().and_then(parse_fuzzy_time);
+                let end_ts = end.as_deref().and_then(parse_fuzzy_time);
+
+                if let Some(s) = start {
+                    if start_ts.is_none() { log::warn!("Failed to parse start time '{}'", s); }
+                }
+                if let Some(e) = end {
+                    if end_ts.is_none() { log::warn!("Failed to parse end time '{}'", e); }
+                }
+
+                let result = ctf::create_event(&config, name, date.clone(), start_ts, end_ts)?;
 
                 if result.already_exists {
                     error!("Event directory already exists: {:?}", result.event_dir);
@@ -300,8 +358,13 @@ fn main() -> Result<()> {
                     log::debug!("* Events without metadata file");
                 }
             }
-            CtfCommands::Import { file, category } => {
-                ctf::import_challenge(&config, file, category.clone())?;
+            CtfCommands::Import {
+                file,
+                category,
+                name,
+                auto,
+            } => {
+                ctf::import_challenge(&config, file, category.clone(), name.clone(), *auto)?;
             }
             CtfCommands::Solve { flag, create, desc } => {
                 ctf::solve_challenge(&config, &flag, create.clone(), desc.clone())?;
@@ -316,6 +379,14 @@ fn main() -> Result<()> {
                 ctf::archive_event(&config, name)?;
             }
             CtfCommands::Path { event, challenge } => {
+                let mut event = event.clone();
+                let mut challenge = challenge.clone();
+
+                if challenge.is_none() && event.as_ref().map_or(false, |e| e.contains('/')) {
+                    challenge = event.clone();
+                    event = None;
+                }
+                
                 let path = ctf::get_event_path(&config, event.as_deref(), challenge.as_deref())?;
                 println!("{}", path.display());
             }
@@ -325,6 +396,21 @@ fn main() -> Result<()> {
             CtfCommands::Use { event } => {
                 ctf::set_active_event(&config, event)?;
             }
+            CtfCommands::Schedule { event, start, end } => {
+                let start_ts = start.as_deref().and_then(parse_fuzzy_time);
+                let end_ts = end.as_deref().and_then(parse_fuzzy_time);
+                ctf::schedule_event(&config, event.as_deref(), start_ts, end_ts)?;
+            }
+            CtfCommands::Finish { event, no_archive, force, dry_run } => {
+                ctf::finish_event(&config, event.as_deref(), *no_archive, *force, *dry_run)?;
+            }
+            CtfCommands::Check => {
+                ctf::check_expiries(&config)?;
+            }
+            CtfCommands::Status => {
+                ctf::challenge_status(&config)?;
+            }
+        }
         },
         Commands::Audit => {
             info!("Auditing workspace...");

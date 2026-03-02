@@ -76,6 +76,12 @@ pub struct CtfConfig {
     #[serde(default)]
     pub default_categories: Vec<String>,
     pub template_file: Option<String>,
+    #[serde(default = "default_grace_period_hours")]
+    pub grace_period_hours: u32,
+}
+
+fn default_grace_period_hours() -> u32 {
+    6
 }
 
 impl Default for CtfConfig {
@@ -88,6 +94,7 @@ impl Default for CtfConfig {
                 "rev".to_string(),
             ],
             template_file: None,
+            grace_period_hours: 6,
         }
     }
 }

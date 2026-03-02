@@ -80,17 +80,31 @@ Wardex knows where you are and what you're working on.
 Add this function to your `.bashrc` or `.zshrc` for seamless navigation:
 
 ```bash
+# Wardex CTF shell integration
 function ctf() {
     if [ "$1" = "goto" ]; then
-        # 'wardex ctf path' defaults to current active event
-        cd "$(wardex ctf path "$2" "$3")"
+        shift
+        # 'wardex ctf path' supports fuzzy finding and category/challenge navigation
+        local target_path=$(wardex ctf path "$@" 2>/dev/null)
+        if [ -n "$target_path" ]; then
+            cd "$target_path" || echo "Failed to navigate"
+        else
+            echo "Path not found."
+            wardex ctf path --help
+        fi
     else
         wardex ctf "$@"
     fi
 }
+# Optional alias
+alias ctg='ctf goto'
 ```
 
-Usage: `ctf goto` (to active event) or `ctf goto web/chall1`.
+Usage: 
+- `ctf goto` (navigates to the active event root)
+- `ctf goto MyEvent` (fuzzy matches event 'MyEvent')
+- `ctf goto web/chall1` (navigates to web/chall1 in the active event)
+- `ctf goto MyEvent chall1` (navigates to chall1 within MyEvent)
 
 ## Configuration
 
