@@ -314,14 +314,20 @@ pub fn finish_event(
     println!("Finishing event: {}", meta.name);
 
     // 1. Find ignored files (cleanup candidates)
-    let output = Command::new("git")
+    let mut out_str = String::new();
+    match Command::new("git")
         .arg("clean")
         .arg("-dXn")
         .current_dir(&event_path)
         .output()
-        .context("Failed to run git clean")?;
-
-    let out_str = String::from_utf8_lossy(&output.stdout);
+    {
+        Ok(output) => {
+            out_str = String::from_utf8_lossy(&output.stdout).to_string();
+        }
+        Err(e) => {
+            println!("! Failed to execute git clean (missing git?): {}", e);
+        }
+    }
     let mut candidates = Vec::new();
     for line in out_str.lines() {
         if let Some(path) = line.strip_prefix("Would remove ") {
@@ -384,13 +390,16 @@ pub fn finish_event(
         .arg("-m")
         .arg(format!("Finished CTF: {}", meta.name))
         .current_dir(&event_path)
-        .status()
-        .context("Failed to run git commit")?;
+        .status();
 
-    if commit_status.success() {
-        println!("✓ Changes committed.");
+    if let Ok(st) = commit_status {
+        if st.success() {
+            println!("✓ Changes committed.");
+        } else {
+            println!("- Git commit returned non-zero (nothing to commit?).");
+        }
     } else {
-        println!("- Git commit returned non-zero (nothing to commit?).");
+        println!("! Failed to execute git commit command.");
     }
 
     // 3. Mark end time if not marked

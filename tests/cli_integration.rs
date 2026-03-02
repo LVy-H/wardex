@@ -499,21 +499,18 @@ fn test_ctf_finish_command() {
         .path();
 
     // Init git repo to make git commands succeed
-    std::process::Command::new("git")
+    let _ = std::process::Command::new("git")
         .arg("init")
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
+        .output();
+    let _ = std::process::Command::new("git")
         .args(&["config", "user.name", "Test User"])
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
+        .output();
+    let _ = std::process::Command::new("git")
         .args(&["config", "user.email", "test@example.com"])
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
+        .output();
 
     // Test dry run
     env.cmd()
@@ -619,27 +616,23 @@ fn test_ctf_status_command() {
         .path();
 
     // Init git repo to make git commands succeed inside solve
-    std::process::Command::new("git")
+    let _ = std::process::Command::new("git")
         .arg("init")
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
+        .output();
+    let _ = std::process::Command::new("git")
         .args(&["config", "user.name", "Test User"])
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
+        .output();
+    let _ = std::process::Command::new("git")
         .args(&["config", "user.email", "test@example.com"])
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
+        .output();
     // Create an initial commit so adding works 
-    std::process::Command::new("git")
+    let _ = std::process::Command::new("git")
         .args(&["commit", "--allow-empty", "-m", "init"])
         .current_dir(&event_dir)
-        .output()
-        .unwrap();
+        .output();
     
     let mut cmd = env.cmd();
     cmd.env("RUST_BACKTRACE", "1");
