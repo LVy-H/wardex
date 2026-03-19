@@ -1,3 +1,7 @@
+//! Wardex CLI
+//!
+//! Focused on CTF management.
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::{error, info, warn};

@@ -37,7 +37,8 @@ pub fn move_item(
 
     if src.is_dir() {
         // Move directory
-        let options = DirCopyOptions::new();
+        let mut options = DirCopyOptions::new();
+        options.copy_inside = true;
         fs_extra::dir::move_dir(src, dest_dir, &options)
             .context(format!("Failed to move directory {:?}", src))?;
     } else {

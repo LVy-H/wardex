@@ -313,93 +313,112 @@ pub fn finish_event(
 
     println!("Finishing event: {}", meta.name);
 
-    // 1. Find ignored files (cleanup candidates)
-    let mut out_str = String::new();
-    match Command::new("git")
-        .arg("clean")
-        .arg("-dXn")
+    // 1. Check if git repo exists
+    let is_git = Command::new("git")
+        .arg("rev-parse")
+        .arg("--is-inside-work-tree")
         .current_dir(&event_path)
         .output()
-    {
-        Ok(output) => {
-            out_str = String::from_utf8_lossy(&output.stdout).to_string();
-        }
-        Err(e) => {
-            println!("! Failed to execute git clean (missing git?): {}", e);
-        }
-    }
-    let mut candidates = Vec::new();
-    for line in out_str.lines() {
-        if let Some(path) = line.strip_prefix("Would remove ") {
-            candidates.push(path.to_string());
-        }
-    }
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
-    if !candidates.is_empty() {
-        let to_delete = if dry_run {
-            println!("(Dry Run) Would remove:");
-            for c in &candidates {
-                println!("  - {}", c);
+    // 2. Find ignored files (cleanup candidates)
+    if is_git {
+        let mut out_str = String::new();
+        match Command::new("git")
+            .arg("clean")
+            .arg("-dXn")
+            .current_dir(&event_path)
+            .output()
+        {
+            Ok(output) => {
+                out_str = String::from_utf8_lossy(&output.stdout).to_string();
             }
-            Vec::new()
-        } else if force {
-            candidates.clone()
-        } else {
-            // Interactive prompt
-            let defaults = vec![true; candidates.len()]; // Select all by default
-            let selections = MultiSelect::with_theme(&ColorfulTheme::default())
-                .with_prompt("Select items to delete (Space to toggle, Enter to confirm)")
-                .items(&candidates)
-                .defaults(&defaults)
-                .interact()?;
+            Err(e) => {
+                println!("! Failed to execute git clean (missing git?): {}", e);
+            }
+        }
+        let mut candidates = Vec::new();
+        for line in out_str.lines() {
+            if let Some(path) = line.strip_prefix("Would remove ") {
+                candidates.push(path.to_string());
+            }
+        }
 
-            selections.into_iter().map(|i| candidates[i].clone()).collect()
-        };
-
-        if !dry_run && !to_delete.is_empty() {
-            println!("Cleaning up {} items...", to_delete.len());
-            for item in to_delete {
-                let full_path = event_path.join(item);
-                if full_path.is_dir() {
-                    let _ = fs::remove_dir_all(full_path);
-                } else {
-                    let _ = fs::remove_file(full_path);
+        if !candidates.is_empty() {
+            let to_delete = if dry_run {
+                println!("(Dry Run) Would remove:");
+                for c in &candidates {
+                    println!("  - {}", c);
                 }
+                Vec::new()
+            } else if force {
+                candidates.clone()
+            } else {
+                // Interactive prompt
+                let defaults = vec![true; candidates.len()]; // Select all by default
+                let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select items to delete (Space to toggle, Enter to confirm)")
+                    .items(&candidates)
+                    .defaults(&defaults)
+                    .interact()?;
+
+                selections.into_iter().map(|i| candidates[i].clone()).collect()
+            };
+
+            if !dry_run && !to_delete.is_empty() {
+                println!("Cleaning up {} items...", to_delete.len());
+                for item in to_delete {
+                    let full_path = event_path.join(item);
+                    if full_path.is_dir() {
+                        let _ = fs::remove_dir_all(full_path);
+                    } else {
+                        let _ = fs::remove_file(full_path);
+                    }
+                }
+                println!("✓ Cleanup complete.");
             }
-            println!("✓ Cleanup complete.");
+        } else {
+            println!("✓ Workspace is already clean.");
         }
     } else {
-        println!("✓ Workspace is already clean.");
+        println!("(Not a git repository, skipping cleanup based on gitignore)");
     }
 
     if dry_run {
-        println!("(Dry Run) Would commit all changes and archive event.");
+        if is_git {
+            println!("(Dry Run) Would commit all changes and archive event.");
+        } else {
+            println!("(Dry Run) Would archive event.");
+        }
         return Ok(());
     }
 
-    // 2. Commit all changes
-    println!("Committing final state...");
-    let _ = Command::new("git")
-        .arg("add")
-        .arg(".")
-        .current_dir(&event_path)
-        .status();
+    // 3. Commit all changes
+    if is_git {
+        println!("Committing final state...");
+        let _ = Command::new("git")
+            .arg("add")
+            .arg(".")
+            .current_dir(&event_path)
+            .status();
 
-    let commit_status = Command::new("git")
-        .arg("commit")
-        .arg("-m")
-        .arg(format!("Finished CTF: {}", meta.name))
-        .current_dir(&event_path)
-        .status();
+        let commit_status = Command::new("git")
+            .arg("commit")
+            .arg("-m")
+            .arg(format!("Finished CTF: {}", meta.name))
+            .current_dir(&event_path)
+            .output();
 
-    if let Ok(st) = commit_status {
-        if st.success() {
-            println!("✓ Changes committed.");
+        if let Ok(st) = commit_status {
+            if st.status.success() {
+                println!("✓ Changes committed.");
+            } else {
+                println!("- Git commit returned non-zero (nothing to commit?).");
+            }
         } else {
-            println!("- Git commit returned non-zero (nothing to commit?).");
+            println!("! Failed to execute git commit command.");
         }
-    } else {
-        println!("! Failed to execute git commit command.");
     }
 
     // 3. Mark end time if not marked
@@ -435,7 +454,7 @@ pub fn check_expiries(config: &Config) -> Result<()> {
                 } else if now >= meta.start_time.unwrap_or(0) && now <= et {
                     active.push(meta.clone());
                 }
-            } else if meta.start_time.is_some() && now >= meta.start_time.unwrap() {
+            } else if now >= meta.start_time.unwrap_or(0) {
                 active.push(meta.clone());
             }
         }
