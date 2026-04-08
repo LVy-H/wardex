@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 // Re-export all public items from submodules
-pub use archive::{archive_event, get_event_path};
+pub use archive::archive_event;
+pub use resolve::get_event_path;
 pub use challenge::{add_challenge, challenge_status, generate_writeup, solve_challenge};
 pub use event::{
     check_active_expiry, check_expiries, create_event, find_event_root, finish_event,

@@ -1,122 +1,14 @@
+//! Event archival — moves completed events to `4_Archives/CTFs/{year}/` and
+//! creates gitignore-respecting zip archives for solved challenges.
+
 use crate::config::Config;
 use crate::utils::fs::move_item;
 use anyhow::Result;
 use chrono::prelude::*;
 use fs_err as fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use super::event::list_events;
 use super::CtfMeta;
-
-pub fn get_event_path(
-    config: &Config,
-    event_name: Option<&str>,
-    challenge_name: Option<&str>,
-) -> Result<PathBuf> {
-    use fuzzy_matcher::skim::SkimMatcherV2;
-    use fuzzy_matcher::FuzzyMatcher;
-
-    let events = list_events(config)?;
-
-    if events.ctf_root_missing {
-        anyhow::bail!("CTF root directory not found");
-    }
-
-    if events.events.is_empty() {
-        anyhow::bail!("No CTF events found");
-    }
-
-    let matcher = SkimMatcherV2::default();
-
-    let event_path = if let Some(name) = event_name {
-        let exact = events
-            .events
-            .iter()
-            .find(|e| e.name.to_lowercase() == name.to_lowercase());
-
-        if let Some(e) = exact {
-            e.path.clone()
-        } else {
-            let mut matches: Vec<_> = events
-                .events
-                .iter()
-                .filter_map(|e| matcher.fuzzy_match(&e.name, name).map(|score| (score, e)))
-                .collect();
-            
-            matches.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
-            
-            if let Some((_, best_match)) = matches.first() {
-                best_match.path.clone()
-            } else {
-                anyhow::bail!("Event not found: {}", name);
-            }
-        }
-    } else {
-        // Prefer current event context (local or global) if available
-        if let Ok(root) = super::get_active_event_root() {
-            root
-        } else {
-            // Fallback to latest
-            events
-                .events
-                .iter()
-                .max_by_key(|e| e.year)
-                .map(|e| e.path.clone())
-                .ok_or_else(|| anyhow::anyhow!("No CTF events found"))?
-        }
-    };
-
-    if let Some(chall) = challenge_name {
-        let (cat_filter, chall_query) = if chall.contains('/') {
-            let parts: Vec<&str> = chall.splitn(2, '/').collect();
-            (Some(parts[0]), parts[1])
-        } else {
-            (None, chall)
-        };
-
-        let mut best_score = 0;
-        let mut best_path = None;
-
-        for entry in fs::read_dir(&event_path)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                let cat_name = entry.file_name().to_string_lossy().to_string();
-
-                if let Some(cat) = cat_filter {
-                    if cat_name != cat {
-                        continue;
-                    }
-                }
-
-                for chall_entry in fs::read_dir(entry.path())? {
-                    let chall_entry = chall_entry?;
-                    if chall_entry.file_type()?.is_dir() {
-                        let cname = chall_entry.file_name().to_string_lossy().to_string();
-                        
-                        if cname.to_lowercase() == chall_query.to_lowercase() {
-                            return Ok(chall_entry.path());
-                        }
-
-                        if let Some(score) = matcher.fuzzy_match(&cname, chall_query) {
-                            if score > best_score {
-                                best_score = score;
-                                best_path = Some(chall_entry.path());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Some(path) = best_path {
-            return Ok(path);
-        }
-
-        anyhow::bail!("Challenge not found: {}", chall);
-    }
-
-    Ok(event_path)
-}
 
 pub fn archive_event(config: &Config, name: &str) -> Result<()> {
     let ctf_root = config.ctf_root();

@@ -1,3 +1,13 @@
+//! CTF event management — creation, listing, scheduling, finishing, and context tracking.
+//!
+//! Events are stored as directories under the CTF root (e.g. `1_Projects/CTFs/2025_Defcon`).
+//! Each event contains a `.ctf_meta.json` metadata file and category subdirectories.
+//!
+//! Context resolution order:
+//! 1. Walk up from CWD to find `.ctf_meta.json` (local context)
+//! 2. Check global state file (set via `wardex ctf use`)
+//! 3. Fall back to latest event by year
+
 use crate::config::Config;
 use anyhow::{Context, Result};
 
