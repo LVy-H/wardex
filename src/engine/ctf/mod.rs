@@ -1,7 +1,22 @@
+//! CTF event management engine.
+//!
+//! Manages the full lifecycle of CTF competitions:
+//! - **Event lifecycle**: `init` → `schedule` → `use` → `finish` → `archive`
+//! - **Challenge workflow**: `add`/`import` → `solve` (flag, commit, compress, archive)
+//! - **Context tracking**: Detects event root from CWD or global state
+//!
+//! ## Submodules
+//! - [`event`] — Event creation, listing, scheduling, finishing
+//! - [`challenge`] — Challenge add/solve/status/writeup
+//! - [`import`] — Smart archive import with category detection
+//! - [`archive`] — Event archival and zip creation
+//! - [`resolve`] — Fuzzy path resolution for events and challenges
+
 mod archive;
 mod challenge;
 mod event;
 mod import;
+mod resolve;
 
 use anyhow::Result;
 use chrono::prelude::*;

@@ -190,6 +190,14 @@ impl Config {
         }
     }
 
+    /// Get the archive path for a CTF event: `{archives}/CTFs/{year}/{event_name}`
+    pub fn ctf_archive_path(&self, year: &str, event_name: &str) -> PathBuf {
+        self.resolve_path("archives")
+            .join("CTFs")
+            .join(year)
+            .join(event_name)
+    }
+
     /// Get the CTF root directory
     pub fn ctf_root(&self) -> PathBuf {
         self.paths

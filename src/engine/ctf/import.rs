@@ -1,3 +1,11 @@
+//! Smart challenge import — moves archives into the event, auto-detects category,
+//! extracts contents, and creates solve script templates.
+//!
+//! Category detection uses a confidence system:
+//! - **High**: Archive contents match known indicators (e.g. `libc.so` → pwn, `Dockerfile` → web)
+//! - **Low**: Filename keywords or file extension heuristics
+//! - **None**: Falls back to "misc"
+
 use crate::config::Config;
 use crate::utils::fs::move_item;
 use anyhow::Result;

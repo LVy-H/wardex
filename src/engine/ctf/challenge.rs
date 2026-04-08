@@ -1,7 +1,11 @@
+//! Challenge operations — add, solve, status, and writeup generation.
+//!
+//! The solve workflow: save flag → detect solution script → update notes →
+//! git commit → compress → archive to `4_Archives/CTFs/{year}/{event}/{category}/{name}`.
+
 use crate::config::Config;
 use anyhow::{Context, Result};
 use fs_err as fs;
-
 
 use super::{add_solve_script, CtfMeta};
 
