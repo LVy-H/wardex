@@ -65,14 +65,19 @@ impl CtfMeta {
         }
     }
 
-    /// Load metadata from a CTF event directory
-    pub fn load(event_dir: &Path) -> Option<Self> {
+    /// Load metadata from a CTF event directory.
+    /// Returns `Ok(None)` if the metadata file doesn't exist,
+    /// `Err` if the file exists but can't be read or parsed.
+    pub fn load(event_dir: &Path) -> Result<Option<Self>> {
         let meta_path = event_dir.join(".ctf_meta.json");
         if meta_path.exists() {
-            let content = fs::read_to_string(&meta_path).ok()?;
-            serde_json::from_str(&content).ok()
+            let content = fs::read_to_string(&meta_path)
+                .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", meta_path, e))?;
+            let meta = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Failed to parse {:?}: {}", meta_path, e))?;
+            Ok(Some(meta))
         } else {
-            None
+            Ok(None)
         }
     }
 

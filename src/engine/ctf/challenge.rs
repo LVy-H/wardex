@@ -276,7 +276,7 @@ pub fn generate_writeup(_config: &Config) -> Result<()> {
     let event_root = super::get_active_event_root()?;
 
     let meta =
-        CtfMeta::load(&event_root).context("Failed to load CTF metadata (.ctf_meta.json)")?;
+        CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
     let mut writeup_content = format!("# Writeup: {}\n\nDate: {}\n\n", meta.name, meta.date);
 
     // Walk through categories and challenges
@@ -340,14 +340,11 @@ struct ChallengeStatus {
 
 pub fn challenge_status(config: &Config) -> Result<()> {
     let event_root = super::get_active_event_root()?;
-    let meta = CtfMeta::load(&event_root)
-        .ok_or_else(|| anyhow::anyhow!("Failed to load CTF metadata (.ctf_meta.json)"))?;
+    let meta = CtfMeta::load(&event_root)?
+        .ok_or_else(|| anyhow::anyhow!("No CTF metadata found (.ctf_meta.json)"))?;
     
     let event_name = event_root.file_name().unwrap().to_string_lossy();
-    let archives_root = config.resolve_path("archives")
-        .join("CTFs")
-        .join(meta.year.to_string())
-        .join(event_name.as_ref());
+    let archives_root = config.ctf_archive_path(&meta.year.to_string(), &event_name);
         
     let mut statuses = Vec::new();
 

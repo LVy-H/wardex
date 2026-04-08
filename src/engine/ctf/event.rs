@@ -117,7 +117,7 @@ pub fn list_events(config: &Config) -> Result<ListEventsResult> {
         let dir_name = entry.file_name().to_string_lossy().to_string();
 
         // Try to load metadata first
-        if let Some(meta) = CtfMeta::load(&path) {
+        if let Some(meta) = CtfMeta::load(&path).ok().flatten() {
             let challenge_count = count_challenges(&path);
             events.push(CtfEventInfo {
                 name: meta.name,
@@ -147,7 +147,7 @@ pub fn list_events(config: &Config) -> Result<ListEventsResult> {
                         let challenge_count = count_challenges(&sub_path);
 
                         // Check for metadata in subdirectory
-                        let (name, date, has_meta) = if let Some(meta) = CtfMeta::load(&sub_path) {
+                        let (name, date, has_meta) = if let Some(meta) = CtfMeta::load(&sub_path).ok().flatten() {
                             (meta.name, Some(meta.date), true)
                         } else {
                             (sub_name, None, false)
@@ -254,7 +254,7 @@ pub fn get_context_info(_config: &Config) -> Result<()> {
         }
     };
 
-    let meta = CtfMeta::load(&root).ok_or_else(|| anyhow::anyhow!("Failed to load metadata"))?;
+    let meta = CtfMeta::load(&root)?.ok_or_else(|| anyhow::anyhow!("No metadata found"))?;
 
     // Check if we are physically inside the root
     let current = std::env::current_dir()?;
@@ -291,8 +291,8 @@ pub fn schedule_event(
 ) -> Result<()> {
     use super::get_event_path;
     let event_path = get_event_path(config, name, None)?;
-    let mut meta = CtfMeta::load(&event_path)
-        .ok_or_else(|| anyhow::anyhow!("Failed to load metadata for event"))?;
+    let mut meta = CtfMeta::load(&event_path)?
+        .ok_or_else(|| anyhow::anyhow!("No metadata found for event"))?;
 
     if let Some(st) = start_time {
         meta.start_time = Some(st);
@@ -318,8 +318,8 @@ pub fn finish_event(
     use std::process::Command;
 
     let event_path = get_event_path(config, name, None)?;
-    let mut meta = CtfMeta::load(&event_path)
-        .ok_or_else(|| anyhow::anyhow!("Failed to load metadata for event"))?;
+    let mut meta = CtfMeta::load(&event_path)?
+        .ok_or_else(|| anyhow::anyhow!("No metadata found for event"))?;
 
     println!("Finishing event: {}", meta.name);
 
@@ -457,7 +457,7 @@ pub fn check_expiries(config: &Config) -> Result<()> {
 
     for e in events.events {
         if !e.has_metadata { continue; }
-        if let Some(meta) = CtfMeta::load(&e.path) {
+        if let Some(meta) = CtfMeta::load(&e.path).ok().flatten() {
             if let Some(et) = meta.end_time {
                 if now > et + grace_sec {
                     expired.push(meta.clone());
@@ -502,7 +502,7 @@ pub fn check_expiries(config: &Config) -> Result<()> {
 pub fn check_active_expiry(config: &Config) {
     use chrono::Local;
     if let Ok(path) = get_active_event_root() {
-        if let Some(meta) = CtfMeta::load(&path) {
+        if let Some(meta) = CtfMeta::load(&path).ok().flatten() {
             if let Some(et) = meta.end_time {
                 let now = Local::now().timestamp();
                 let grace = (config.ctf.grace_period_hours as i64) * 3600;

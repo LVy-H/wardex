@@ -40,7 +40,7 @@ pub fn archive_event(config: &Config, name: &str) -> Result<()> {
     }
 
     // Load meta to get year
-    let year = if let Some(meta) = CtfMeta::load(&event_dir) {
+    let year = if let Some(meta) = CtfMeta::load(&event_dir).ok().flatten() {
         meta.year.to_string()
     } else {
         Local::now().year().to_string()
