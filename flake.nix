@@ -40,16 +40,19 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "wardex";
-            version = "0.1.0";
-            
+            version = "0.2.0-alpha3";
+
             src = ./.;
-            
+
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
-            
+
             inherit nativeBuildInputs buildInputs;
-            
+
+            # git is needed for integration tests (git init in test fixtures)
+            nativeCheckInputs = [ pkgs.git ];
+
             # Environment variables for building
             OPENSSL_NO_VENDOR = 1;
             
