@@ -105,6 +105,8 @@ enum CtfCommands {
         event: Option<String>,
         #[arg(help = "Challenge name (optional)")]
         challenge: Option<String>,
+        #[arg(long, help = "Output as 'cd <path>' for eval in shell")]
+        cd: bool,
     },
     /// Show current CTF context info
     Info,
@@ -137,6 +139,28 @@ enum CtfCommands {
     Check,
     /// Detailed status of challenges (Active vs Solved)
     Status,
+    /// Create a challenge and print its path (add + cd shortcut)
+    Work {
+        #[arg(help = "Category/Name (e.g. pwn/stack-buffer)")]
+        path: String,
+    },
+    /// Solve and optionally skip archive/commit (alias for solve with flags)
+    Done {
+        /// The flag value
+        flag: String,
+        /// Create a new challenge on the fly (format: <category>/<name>)
+        #[arg(long, short = 'c')]
+        create: Option<String>,
+        /// Optional description/writeup
+        #[arg(long, short = 'd')]
+        desc: Option<String>,
+        /// Skip archiving the challenge after solving
+        #[arg(long)]
+        no_archive: bool,
+        /// Skip git commit
+        #[arg(long)]
+        no_commit: bool,
+    },
 }
 
 fn parse_fuzzy_time(time_str: &str) -> Option<i64> {
@@ -390,17 +414,21 @@ fn main() -> Result<()> {
             CtfCommands::Archive { name } => {
                 ctf::archive_event(&config, name)?;
             }
-            CtfCommands::Path { event, challenge } => {
+            CtfCommands::Path { event, challenge, cd } => {
                 let mut event = event.clone();
                 let mut challenge = challenge.clone();
 
-                if challenge.is_none() && event.as_ref().map_or(false, |e| e.contains('/')) {
+                if challenge.is_none() && event.as_ref().is_some_and(|e| e.contains('/')) {
                     challenge = event.clone();
                     event = None;
                 }
-                
+
                 let path = ctf::get_event_path(&config, event.as_deref(), challenge.as_deref())?;
-                println!("{}", path.display());
+                if *cd {
+                    println!("cd '{}'", path.display());
+                } else {
+                    println!("{}", path.display());
+                }
             }
             CtfCommands::Info => {
                 ctf::get_context_info(&config)?;
@@ -422,81 +450,33 @@ fn main() -> Result<()> {
             CtfCommands::Status => {
                 ctf::challenge_status(&config)?;
             }
+            CtfCommands::Work { path } => {
+                ctf::add_challenge(&config, path)?;
+                // Print cd command so user can eval it
+                let event_root = ctf::get_active_event_root()?;
+                let parts: Vec<&str> = path.split('/').collect();
+                let challenge_dir = if parts.len() == 2 {
+                    event_root.join(parts[0]).join(parts[1])
+                } else {
+                    // Single name — try CWD as category
+                    let cwd = std::env::current_dir()?;
+                    cwd.join(parts[0])
+                };
+                println!("cd '{}'", challenge_dir.display());
+            }
+            CtfCommands::Done { flag, create, desc, no_archive, no_commit } => {
+                ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
+            }
         }
         },
         Commands::Audit => {
             info!("Auditing workspace...");
             let report = auditor::audit_workspace(&config)?;
-
-            if report.workspace_not_found {
-                error!(
-                    "Workspace not found: {:?}",
-                    config.resolve_path("workspace")
-                );
-                return Ok(());
-            }
-
-            info!("Analyzed {} items.", report.items_scanned);
-
-            if !report.empty_folders.is_empty() {
-                warn!("Empty Folders Found: {}", report.empty_folders.len());
-                for p in report.empty_folders.iter().take(10) {
-                    println!(" - {:?}", p);
-                }
-                if report.empty_folders.len() > 10 {
-                    println!("... and {} more", report.empty_folders.len() - 10);
-                }
-            }
-
-            if !report.suspicious_extensions.is_empty() {
-                warn!("Suspicious Extensions (Magic Byte Mismatch):");
-                for item in &report.suspicious_extensions {
-                    println!(
-                        " - {:?} (Named: .{}, Real: .{})",
-                        item.path, item.declared_ext, item.actual_ext
-                    );
-                }
-            }
-
-            info!("✓ Audit Complete.");
+            output::display_audit_report(&config, &report);
         }
         Commands::Undo { count } => {
             let report = undo::undo_last(&config, *count)?;
-
-            if report.no_log_found {
-                warn!("No undo log found.");
-                return Ok(());
-            }
-
-            if report.log_empty {
-                warn!("Undo log is empty.");
-                return Ok(());
-            }
-
-            info!("Undoing {} operations...", report.undone.len());
-
-            for item in &report.undone {
-                if item.success {
-                    info!(
-                        "✓ Reverted: {:?} -> {:?}",
-                        item.source.file_name().unwrap_or_default(),
-                        item.destination
-                    );
-                } else {
-                    error!(
-                        "✗ Failed: {:?} ({})",
-                        item.source.file_name().unwrap_or_default(),
-                        item.error.as_deref().unwrap_or("Unknown error")
-                    );
-                }
-            }
-
-            let success_count = report.undone.iter().filter(|i| i.success).count();
-            info!(
-                "Completed: {}/{} operations",
-                success_count,
-                report.undone.len()
-            );
+            output::display_undo_report(&report);
         }
         Commands::Watch => {
             watcher::watch_inbox(&config)?;

@@ -50,7 +50,13 @@ wardex ctf use Defcon2025    # Switch active event context manually
 wardex ctf info              # Show current event context
 wardex ctf import file.zip   # Smart import (moves file, auto-detects category)
 wardex ctf add web/chall1    # Manually add challenge (infers category if in subfolder)
-wardex ctf path              # Print path to current event (cd $(wardex ctf path))
+wardex ctf path              # Print path to current event
+wardex ctf path --cd         # Output as 'cd <path>' for eval
+
+# Quick workflow shortcuts
+eval $(wardex ctf work pwn/heap-overflow)  # Create challenge + cd into it
+wardex ctf done "flag{found}" --no-archive # Solve without archiving
+wardex ctf solve "flag{found}" --no-commit # Solve without git commit
 
 # Search for flags
 wardex search /path/to/ctf
@@ -77,27 +83,30 @@ Wardex knows where you are and what you're working on.
 - Run commands from anywhere (e.g., `~/Downloads`), and they will apply to the active event.
 
 **3. Shell Integration**:
-Add this function to your `.bashrc` or `.zshrc` for seamless navigation:
+
+**Quick setup** — add to `.bashrc` or `.zshrc`:
 
 ```bash
-# Wardex CTF shell integration
+# Navigate to CTF paths (uses --cd flag for eval-safe output)
+ctf-goto() { eval "$(wardex ctf path --cd "$@" 2>/dev/null)" || echo "Path not found."; }
+# Create challenge and cd into it
+ctf-work() { eval "$(wardex ctf work "$@" 2>/dev/null)" || echo "Failed to create challenge."; }
+```
+
+**Full wrapper** (optional, wraps all `wardex ctf` commands):
+
+```bash
 function ctf() {
     if [ "$1" = "goto" ]; then
         shift
-        # 'wardex ctf path' supports fuzzy finding and category/challenge navigation
-        local target_path=$(wardex ctf path "$@" 2>/dev/null)
-        if [ -n "$target_path" ]; then
-            cd "$target_path" || echo "Failed to navigate"
-        else
-            echo "Path not found."
-            wardex ctf path --help
-        fi
+        eval "$(wardex ctf path --cd "$@" 2>/dev/null)" || echo "Path not found."
+    elif [ "$1" = "work" ]; then
+        shift
+        eval "$(wardex ctf work "$@" 2>/dev/null)" || echo "Failed."
     else
         wardex ctf "$@"
     fi
 }
-# Optional alias
-alias ctg='ctf goto'
 ```
 
 Usage: 
