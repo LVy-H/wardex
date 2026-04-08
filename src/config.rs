@@ -33,8 +33,9 @@ pub struct Paths {
 
 impl Default for Paths {
     fn default() -> Self {
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
         Self {
-            workspace: PathBuf::from("workspace"),
+            workspace: home.join("workspace"),
             inbox: None,
             projects: None,
             areas: None,

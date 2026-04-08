@@ -284,8 +284,14 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let config_path = find_config(&cli.config)?;
-    let config = Config::load_from_file(&config_path)?;
+    let config = match find_config(&cli.config) {
+        Ok(config_path) => Config::load_from_file(&config_path)?,
+        Err(_) if matches!(&cli.command, Commands::Ctf { .. }) => {
+            // CTF commands work without config — use defaults
+            Config::default()
+        }
+        Err(e) => return Err(e),
+    };
 
     match &cli.command {
         Commands::Init { type_, name } => {
