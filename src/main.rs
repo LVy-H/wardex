@@ -80,6 +80,12 @@ enum CtfCommands {
         /// Optional description/writeup to append to notes.md
         #[arg(long, short = 'd')]
         desc: Option<String>,
+        /// Skip archiving the challenge after solving
+        #[arg(long)]
+        no_archive: bool,
+        /// Skip git commit
+        #[arg(long)]
+        no_commit: bool,
     },
     /// Add a new challenge to current event
     Add {
@@ -372,8 +378,8 @@ fn main() -> Result<()> {
             } => {
                 ctf::import_challenge(&config, file, category.clone(), name.clone(), *auto)?;
             }
-            CtfCommands::Solve { flag, create, desc } => {
-                ctf::solve_challenge(&config, &flag, create.clone(), desc.clone())?;
+            CtfCommands::Solve { flag, create, desc, no_archive, no_commit } => {
+                ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
             }
             CtfCommands::Add { path } => {
                 ctf::add_challenge(&config, path)?;

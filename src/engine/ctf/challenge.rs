@@ -67,6 +67,8 @@ pub fn solve_challenge(
     flag: &str,
     create: Option<String>,
     desc: Option<String>,
+    no_archive: bool,
+    no_commit: bool,
 ) -> Result<()> {
     let current_dir = if let Some(path_str) = create {
         // Mode 1: Create on the fly
@@ -185,90 +187,90 @@ pub fn solve_challenge(
     }
 
     // 4. Git commit (Everything)
-    println!("\nCommitting ALL changes (history)...");
-    use std::process::Command;
+    if !no_commit {
+        use std::process::Command;
+        println!("\nCommitting ALL changes (history)...");
 
-    let add_status = Command::new("git")
-        .arg("add")
-        .arg(".")
-        .current_dir(&current_dir)
-        .status();
+        let add_status = Command::new("git")
+            .arg("add")
+            .arg(".")
+            .current_dir(&current_dir)
+            .status();
 
-    if let Ok(st) = add_status {
-        if st.success() {
-            let commit_msg = format!("Solved: {} (Flag: {})", dir_name, flag);
-            let commit_status = Command::new("git")
-                .arg("commit")
-                .arg("-m")
-                .arg(&commit_msg)
-                .current_dir(&current_dir)
-                .status();
+        if let Ok(st) = add_status {
+            if st.success() {
+                let commit_msg = format!("Solved: {} (Flag: {})", dir_name, flag);
+                let commit_status = Command::new("git")
+                    .arg("commit")
+                    .arg("-m")
+                    .arg(&commit_msg)
+                    .current_dir(&current_dir)
+                    .status();
 
-            if let Ok(c_st) = commit_status {
-                if c_st.success() {
-                    println!("✓ Committed changes");
+                if let Ok(c_st) = commit_status {
+                    if c_st.success() {
+                        println!("✓ Committed changes");
+                    } else {
+                        println!("! Git commit failed (nothing to commit?)");
+                    }
                 } else {
-                    println!("! Git commit failed (nothing to commit?)");
+                    println!("! Failed to execute git commit command.");
                 }
             } else {
-                println!("! Failed to execute git commit command.");
+                println!("! git add failed. Skipping commit.");
             }
         } else {
-            println!("! git add failed. Skipping commit.");
+            println!("! Failed to execute git add command. Is git installed?");
         }
-    } else {
-        println!("! Failed to execute git add command. Is git installed?");
     }
 
     // 5. Compress Everything (respecting .gitignore)
-    println!("Compressing artifacts...");
-    let zip_path = current_dir.join("solution.zip");
-    if let Err(e) = super::archive::create_zip(&current_dir, &zip_path) {
-        println!("! Failed to create solution.zip (probably no git repo): {}", e);
-    } else {
-        println!("✓ Created solution.zip");
+    if !no_archive {
+        println!("Compressing artifacts...");
+        let zip_path = current_dir.join("solution.zip");
+        if let Err(e) = super::archive::create_zip(&current_dir, &zip_path) {
+            println!("! Failed to create solution.zip (probably no git repo): {}", e);
+        } else {
+            println!("✓ Created solution.zip");
+        }
     }
 
     // 6. Archive
-    println!("DEBUG: current_dir before archive logic = {:?}", current_dir);
-    if let Some(category_dir) = current_dir.parent() {
-        println!("DEBUG: category_dir = {:?}", category_dir);
-        if let Some(event_dir) = category_dir.parent() {
-            println!("DEBUG: event_dir = {:?}", event_dir);
-            let meta_path = event_dir.join(".ctf_meta.json");
-            println!("DEBUG: meta_path exists? {} ({:?})", meta_path.exists(), meta_path);
-            
-            if meta_path.exists() {
-                let category_name = category_dir.file_name().unwrap().to_string_lossy();
-                let event_name = event_dir.file_name().unwrap().to_string_lossy();
-                let year = if let Some(meta) = CtfMeta::load(&event_dir) {
-                    meta.year.to_string()
-                } else {
-                    chrono::Local::now().format("%Y").to_string()
-                };
+    if !no_archive {
+        if let Some(category_dir) = current_dir.parent() {
+            if let Some(event_dir) = category_dir.parent() {
+                let meta_path = event_dir.join(".ctf_meta.json");
 
-                let archives_root = config.resolve_path("archives").join("CTFs");
-                let target_dir = archives_root
-                    .join(&year)
-                    .join(event_name.as_ref())
-                    .join(category_name.as_ref())
-                    .join(dir_name);
+                if meta_path.exists() {
+                    let category_name = category_dir.file_name().unwrap().to_string_lossy();
+                    let event_name = event_dir.file_name().unwrap().to_string_lossy();
+                    let year = if let Some(meta) = CtfMeta::load(event_dir).ok().flatten() {
+                        meta.year.to_string()
+                    } else {
+                        chrono::Local::now().format("%Y").to_string()
+                    };
 
-                if !target_dir.parent().unwrap().exists() {
-                    fs::create_dir_all(target_dir.parent().unwrap())?;
+                    let target_dir = config
+                        .ctf_archive_path(&year, &event_name)
+                        .join(category_name.as_ref())
+                        .join(dir_name);
+
+                    if !target_dir.parent().unwrap().exists() {
+                        fs::create_dir_all(target_dir.parent().unwrap())?;
+                    }
+
+                    println!("Archiving to {:?}...", target_dir);
+
+                    // Try rename first, fallback to copy+delete for cross-device
+                    if fs::rename(&current_dir, &target_dir).is_err() {
+                        let options = fs_extra::dir::CopyOptions::new();
+                        fs_extra::dir::copy(&current_dir, target_dir.parent().unwrap(), &options)
+                            .context("Failed to archive (cross-device move)")?;
+                        fs::remove_dir_all(&current_dir)?;
+                    }
+
+                    println!("✓ Archived to: {}", target_dir.display());
                 }
-
-                println!("Archiving to {:?}...", target_dir);
-
-                // Try rename first, fallback to copy+delete for cross-device
-                if let Err(_) = fs::rename(&current_dir, &target_dir) {
-                    let options = fs_extra::dir::CopyOptions::new();
-                    fs_extra::dir::copy(&current_dir, target_dir.parent().unwrap(), &options)
-                        .context("Failed to archive (cross-device move)")?;
-                    fs::remove_dir_all(&current_dir)?;
-                }
-                
-                println!("✓ Challenge archived. Note: Your current directory has been moved.");
             }
         }
     }
@@ -373,7 +375,6 @@ pub fn challenge_status(config: &Config) -> Result<()> {
     }
 
     // 2. Scan Archive Dir for Solved
-    println!("DEBUG: Checking archive root: {:?}", archives_root);
     if archives_root.exists() {
         if let Ok(cats) = fs::read_dir(&archives_root) {
             for cat in cats.flatten() {
@@ -393,8 +394,6 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                 }
             }
         }
-    } else {
-        println!("DEBUG: Archive root does not exist: {:?}", archives_root);
     }
 
     if statuses.is_empty() {
