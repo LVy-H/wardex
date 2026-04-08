@@ -293,47 +293,7 @@ fn main() -> Result<()> {
         }
         Commands::Clean { dry_run } => {
             let report = cleaner::clean_inbox(&config, *dry_run)?;
-
-            if report.inbox_not_found {
-                error!("Inbox path not found: {:?}", config.resolve_path("inbox"));
-                return Ok(());
-            }
-
-            if report.inbox_empty {
-                warn!("Inbox is empty.");
-                return Ok(());
-            }
-
-            for item in &report.moved {
-                if item.dry_run {
-                    info!("Would move {:?} -> {:?}", item.source, item.destination);
-                } else {
-                    info!(
-                        "✓ Moved {:?} -> {:?}",
-                        item.source.file_name().unwrap_or_default(),
-                        item.destination
-                    );
-                }
-            }
-
-            for item in &report.skipped {
-                log::debug!(
-                    "Skipped: {:?} ({})",
-                    item.path.file_name().unwrap_or_default(),
-                    item.reason
-                );
-            }
-
-            for err in &report.errors {
-                error!("{}", err);
-            }
-
-            info!(
-                "Moved: {}, Skipped: {}, Errors: {}",
-                report.moved.len(),
-                report.skipped.len(),
-                report.errors.len()
-            );
+            output::display_clean_report(&config, &report);
         }
         Commands::Ctf { command } => {
             if !matches!(command, CtfCommands::Check | CtfCommands::List) {
