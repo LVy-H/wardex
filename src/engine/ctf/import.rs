@@ -37,7 +37,7 @@ pub fn import_challenge(
     name_override: Option<String>,
     auto_mode: bool,
 ) -> Result<()> {
-    use dialoguer::{theme::ColorfulTheme, Input, Select};
+    use dialoguer::{theme::ColorfulTheme, Input};
 
     let event_root = super::get_active_event_root()?;
 
@@ -67,11 +67,18 @@ pub fn import_challenge(
     }
 
     // ── Challenge name ─────────────────────────────────────────────────
-    let default_name = Path::new(&file_name)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("unknown_chall")
-        .to_string();
+    // Strip compound extensions like .tar.gz, .tar.bz2, .tar.xz
+    let default_name = {
+        let stem = Path::new(&file_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown_chall")
+            .to_string();
+        // If the stem still ends with .tar (from .tar.gz etc.), strip it
+        stem.strip_suffix(".tar")
+            .unwrap_or(&stem)
+            .to_string()
+    };
 
     let challenge_name = if let Some(name) = name_override {
         // Explicit --name flag
@@ -268,7 +275,6 @@ fn select_category(
 
 /// Extract a zip archive into a target directory
 fn extract_zip(archive_path: &Path, target_dir: &Path) -> Result<usize> {
-    use std::io::Read;
     use zip::ZipArchive;
 
     let file = fs::File::open(archive_path)?;
@@ -352,48 +358,60 @@ fn walkdir_count(dir: &Path) -> usize {
     count
 }
 
+/// Classify an archive entry name into a CTF category based on known indicators.
+fn classify_entry_name(name: &str) -> Option<&'static str> {
+    let name = name.to_lowercase();
+
+    if name.contains("dockerfile")
+        || name.contains("package.json")
+        || name.contains("app.py")
+        || name.contains("server.js")
+        || name.contains("index.html")
+    {
+        return Some("web");
+    }
+
+    if name.contains("libc.so")
+        || name.ends_with(".elf")
+        || name.contains("ld-")
+        || name.contains("pwntools")
+    {
+        return Some("pwn");
+    }
+
+    if name.contains("crypto")
+        || name.contains("cipher")
+        || name.contains("rsa")
+        || name.contains("aes")
+        || name.contains("key.txt")
+    {
+        return Some("crypto");
+    }
+
+    if name.ends_with(".exe")
+        || name.ends_with(".dll")
+        || name.contains("ghidra")
+        || name.contains("ida")
+    {
+        return Some("rev");
+    }
+
+    None
+}
+
+/// Maximum number of archive entries to scan for category detection
+const MAX_SCAN_ENTRIES: usize = 50;
+
 fn scan_zip_for_category(path: &Path) -> Option<&'static str> {
     use zip::ZipArchive;
 
     let file = fs::File::open(path).ok()?;
     let mut archive = ZipArchive::new(file).ok()?;
 
-    for i in 0..archive.len().min(50) {
+    for i in 0..archive.len().min(MAX_SCAN_ENTRIES) {
         if let Ok(file) = archive.by_index(i) {
-            let name = file.name().to_lowercase();
-
-            if name.contains("dockerfile")
-                || name.contains("package.json")
-                || name.contains("app.py")
-                || name.contains("server.js")
-                || name.contains("index.html")
-            {
-                return Some("web");
-            }
-
-            if name.contains("libc.so")
-                || name.ends_with(".elf")
-                || name.contains("ld-")
-                || name.contains("pwntools")
-            {
-                return Some("pwn");
-            }
-
-            if name.contains("crypto")
-                || name.contains("cipher")
-                || name.contains("rsa")
-                || name.contains("aes")
-                || name.contains("key.txt")
-            {
-                return Some("crypto");
-            }
-
-            if name.ends_with(".exe")
-                || name.ends_with(".dll")
-                || name.contains("ghidra")
-                || name.contains("ida")
-            {
-                return Some("rev");
+            if let Some(cat) = classify_entry_name(file.name()) {
+                return Some(cat);
             }
         }
     }
@@ -424,45 +442,13 @@ fn scan_tar_for_category(path: &Path) -> Option<&'static str> {
 
     if let Ok(entries) = archive.entries() {
         for (idx, entry) in entries.enumerate() {
-            if idx > 50 {
+            if idx > MAX_SCAN_ENTRIES {
                 break;
             }
             if let Ok(entry) = entry {
                 if let Ok(path) = entry.path() {
-                    let name = path.to_string_lossy().to_lowercase();
-
-                    if name.contains("dockerfile")
-                        || name.contains("package.json")
-                        || name.contains("app.py")
-                        || name.contains("server.js")
-                        || name.contains("index.html")
-                    {
-                        return Some("web");
-                    }
-
-                    if name.contains("libc.so")
-                        || name.ends_with(".elf")
-                        || name.contains("ld-")
-                        || name.contains("pwntools")
-                    {
-                        return Some("pwn");
-                    }
-
-                    if name.contains("crypto")
-                        || name.contains("cipher")
-                        || name.contains("rsa")
-                        || name.contains("aes")
-                        || name.contains("key.txt")
-                    {
-                        return Some("crypto");
-                    }
-
-                    if name.ends_with(".exe")
-                        || name.ends_with(".dll")
-                        || name.contains("ghidra")
-                        || name.contains("ida")
-                    {
-                        return Some("rev");
+                    if let Some(cat) = classify_entry_name(&path.to_string_lossy()) {
+                        return Some(cat);
                     }
                 }
             }

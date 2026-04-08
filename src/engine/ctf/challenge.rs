@@ -105,8 +105,6 @@ pub fn solve_challenge(
             println!("Created challenge: {}/{}", category, name);
         }
 
-        // We MUST change directory to the challenge dir for the rest of the logic to work
-        std::env::set_current_dir(&challenge_dir)?;
         challenge_dir
     } else {
         // Mode 2: Existing challenge (CWD)
