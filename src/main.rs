@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use wardex::config::Config;
 use wardex::core::watcher;
 use wardex::engine::{auditor, cleaner, ctf, scaffold, search, stats, status, undo};
+use wardex::output;
+#[cfg(feature = "tui")]
 use wardex::tui;
 
 #[derive(Parser)]
@@ -496,102 +498,35 @@ fn main() -> Result<()> {
         Commands::Status => {
             info!("Scanning workspace: {:?}", config.resolve_path("workspace"));
             let report = status::show_status(&config)?;
-
-            if report.workspace_not_found {
-                error!("Workspace not found.");
-                return Ok(());
-            }
-
-            if report.repos.is_empty() {
-                warn!("No git repositories found.");
-                return Ok(());
-            }
-
-            println!("\n{:<25} {:<12} {:<15} Path", "Project", "State", "Sync");
-            println!("{}", "-".repeat(80));
-
-            for repo in &report.repos {
-                let state = if repo.is_dirty {
-                    "⚠ Dirty"
-                } else {
-                    "✓ Clean"
-                };
-                println!(
-                    "{:<25} {:<12} {:<15} {}",
-                    repo.name,
-                    state,
-                    repo.sync_status.display(),
-                    repo.path.display()
-                );
-            }
-
-            let dirty_count = report.repos.iter().filter(|r| r.is_dirty).count();
-            info!(
-                "Total: {} repos ({} dirty)",
-                report.repos.len(),
-                dirty_count
-            );
+            output::display_status_report(&config, &report);
         }
         Commands::Search { path, pattern } => {
             info!("Searching for flags in {:?}...", path);
             let report = search::find_flags(path, pattern.clone())?;
-
-            for m in &report.matches {
-                let location = if let Some(ref entry) = m.archive_entry {
-                    format!("{} (in {})", entry, m.file_path)
-                } else if let Some(line) = m.line_number {
-                    format!("{}:{}", m.file_path, line)
-                } else {
-                    m.file_path.clone()
-                };
-                println!("✓ {}: {}", location, m.matched_text);
-            }
-
-            info!(
-                "Scanned {} files, found {} matches.",
-                report.files_scanned,
-                report.matches.len()
-            );
-
-            if !report.errors.is_empty() {
-                warn!("{} errors occurred:", report.errors.len());
-                for e in report.errors.iter().take(5) {
-                    log::debug!("  - {}", e);
-                }
-            }
+            output::display_search_report(&report);
         }
         Commands::Find { name } => {
             let results = search::find_project(&config, name)?;
-            if results.is_empty() {
-                warn!("No projects found matching '{}'", name);
-            } else {
-                println!("{:<50} {:<10}", "Project Path", "Score");
-                println!("{}", "-".repeat(60));
-                for res in results.iter().take(10) {
-                    println!("{:<50} {}", res.path.display(), res.score);
-                }
-            }
+            output::display_find_results(&results, name);
         }
         Commands::Grep { pattern } => {
             info!("Grepping in Projects & Resources...");
             let matches = search::content_search(&config, pattern)?;
-
-            for m in &matches {
-                println!(
-                    "{}:{}: {}",
-                    m.file_path,
-                    m.line_number.unwrap_or(0),
-                    m.matched_text
-                );
-            }
-            info!("Found {} matches.", matches.len());
+            output::display_grep_results(&matches);
         }
         Commands::Stats => {
             let stats = stats::get_stats(&config)?;
             stats::print_stats(&stats);
         }
         Commands::Dashboard => {
-            tui::run(&config)?;
+            #[cfg(feature = "tui")]
+            {
+                tui::run(&config)?;
+            }
+            #[cfg(not(feature = "tui"))]
+            {
+                eprintln!("TUI dashboard is not enabled. Rebuild with: cargo install --features tui");
+            }
         }
         Commands::Info { path } => {
             let target = path.clone().unwrap_or_else(|| PathBuf::from("."));
