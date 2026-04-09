@@ -22,6 +22,23 @@ Wardex uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with alph
 - **Best-effort migration** is provided where practical. Wardex includes auto-migration for metadata schemas (see below) but does not guarantee migration for all changes.
 - Users should always upgrade to the latest version.
 
+### Branching Strategy
+
+| Branch | Purpose | Merges to |
+|--------|---------|-----------|
+| `main` | Current development. All alpha work happens here. | — |
+| `release/0.x` | Created at beta. Receives only bug fixes. | — |
+| `feat/*`, `fix/*` | Feature and fix branches. Short-lived. | `main` |
+
+During alpha:
+- All work lands on `main` directly or via feature branches.
+- No release branches exist yet. Tags mark alpha releases (`v0.2.0-alpha4`).
+
+At beta:
+- A `release/0.2` branch is cut from `main`.
+- `main` continues with next-version work.
+- Only critical fixes are cherry-picked to the release branch.
+
 ### Metadata Schema Versioning
 
 All metadata files (`.ctf_meta.json`, `.challenge.json`) include a `schema_version` integer field.
