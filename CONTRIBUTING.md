@@ -21,9 +21,11 @@ wardex/
 │   │   └── mod.rs        # Module declarations
 │   └── ...
 ├── README.md             # User documentation
-├── PREVIEW.md            # Feature showcase and vision
+├── docs/                 # Architecture, preview, and planning docs
 └── CONTRIBUTING.md       # You are here!
 ```
+
+Planning docs for upcoming work live in [`docs/plan/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/README.md).
 
 ## Engine Modules
 
@@ -71,6 +73,15 @@ Example: `wardex ctf import challenge.zip`
 3. Function reads config, validates paths
 4. Performs file operations
 5. Updates metadata (`.ctf_meta.json`)
+
+## Design Docs And RFCs
+
+Wardex uses lightweight design docs for CLI decisions:
+
+- [`docs/CLI_DESIGN.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/CLI_DESIGN.md) defines the command design rules
+- [`docs/rfcs/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/rfcs/README.md) explains when to write an RFC
+
+Please use the RFC process for major CLI, shell integration, workflow, or command-semantics changes.
 
 ## Development Workflow
 

@@ -198,6 +198,15 @@ If no configuration is provided, Wardex uses these defaults:
 - **archives**: `{workspace}/4_Archives`
 - **ctf_root**: `{projects}/CTFs`
 
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/ARCHITECTURE.md) for the current code layout
+- [`docs/CLI_DESIGN.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/CLI_DESIGN.md) for command and shell UX rules
+- [`docs/ctf-lifecycle.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/ctf-lifecycle.md) for the draft CTF command flow and naming guidance
+- [`docs/PREVIEW.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/PREVIEW.md) for product direction and feature framing
+- [`docs/rfcs/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/rfcs/README.md) for the RFC process
+- [`docs/plan/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/README.md) for the staged development and upgrade plan
+
 ## License
 
 MIT
