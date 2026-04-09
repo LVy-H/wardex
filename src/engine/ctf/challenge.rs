@@ -7,9 +7,9 @@ use crate::config::Config;
 use anyhow::{Context, Result};
 use fs_err as fs;
 
-use super::{add_solve_script, CtfMeta};
+use super::{add_solve_script, ChallengeMetadata, CtfMeta};
 
-pub fn add_challenge(_config: &Config, path: &str) -> Result<()> {
+pub fn add_challenge(_config: &Config, path: &str) -> Result<std::path::PathBuf> {
     let event_root = super::get_active_event_root()?;
 
     let parts: Vec<&str> = path.split('/').collect();
@@ -59,7 +59,11 @@ pub fn add_challenge(_config: &Config, path: &str) -> Result<()> {
 
     add_solve_script(&challenge_dir, &category)?;
 
-    Ok(())
+    // Create .challenge.json metadata
+    let meta = ChallengeMetadata::new(&name, &category);
+    meta.save(&challenge_dir)?;
+
+    Ok(challenge_dir)
 }
 
 pub fn solve_challenge(
@@ -333,7 +337,7 @@ pub fn generate_writeup(_config: &Config) -> Result<()> {
 }
 
 #[derive(tabled::Tabled)]
-struct ChallengeStatus {
+struct ChallengeStatusRow {
     #[tabled(rename = "Category")]
     category: String,
     #[tabled(rename = "Challenge")]
@@ -360,10 +364,20 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                 if let Ok(chals) = fs::read_dir(cat.path()) {
                     for chal in chals.flatten() {
                         if chal.path().is_dir() {
-                            statuses.push(ChallengeStatus {
+                            let display_status = if let Ok(Some(meta)) = ChallengeMetadata::load_or_migrate(&chal.path()) {
+                                match meta.status {
+                                    super::ChallengeStatus::Solved => "✓ Solved".to_string(),
+                                    super::ChallengeStatus::TeamSolved => "✓ Team-Solved".to_string(),
+                                    super::ChallengeStatus::Unsolved => "✗ Unsolved".to_string(),
+                                    super::ChallengeStatus::Active => "⌚ Active".to_string(),
+                                }
+                            } else {
+                                "⌚ Active".to_string()
+                            };
+                            statuses.push(ChallengeStatusRow {
                                 category: cat_name.clone(),
                                 challenge: chal.file_name().to_string_lossy().to_string(),
-                                status: "⌚ Active".to_string(),
+                                status: display_status,
                             });
                         }
                     }
@@ -381,7 +395,7 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                     if let Ok(chals) = fs::read_dir(cat.path()) {
                         for chal in chals.flatten() {
                             if chal.path().is_dir() {
-                                statuses.push(ChallengeStatus {
+                                statuses.push(ChallengeStatusRow {
                                     category: cat_name.clone(),
                                     challenge: chal.file_name().to_string_lossy().to_string(),
                                     status: "✓ Solved".to_string(),

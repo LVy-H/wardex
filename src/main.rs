@@ -376,16 +376,8 @@ fn main() -> Result<()> {
                 ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
             }
             CtfCommands::Add { path, cd } => {
-                ctf::add_challenge(&config, path)?;
+                let challenge_dir = ctf::add_challenge(&config, path)?;
                 if *cd {
-                    let event_root = ctf::get_active_event_root()?;
-                    let parts: Vec<&str> = path.split('/').collect();
-                    let challenge_dir = if parts.len() == 2 {
-                        event_root.join(parts[0]).join(parts[1])
-                    } else {
-                        let cwd = std::env::current_dir()?;
-                        cwd.join(parts[0])
-                    };
                     println!("cd '{}'", challenge_dir.display());
                 }
             }
@@ -432,17 +424,7 @@ fn main() -> Result<()> {
                 ctf::challenge_status(&config)?;
             }
             CtfCommands::Work { path } => {
-                ctf::add_challenge(&config, path)?;
-                // Print cd command so user can eval it
-                let event_root = ctf::get_active_event_root()?;
-                let parts: Vec<&str> = path.split('/').collect();
-                let challenge_dir = if parts.len() == 2 {
-                    event_root.join(parts[0]).join(parts[1])
-                } else {
-                    // Single name — try CWD as category
-                    let cwd = std::env::current_dir()?;
-                    cwd.join(parts[0])
-                };
+                let challenge_dir = ctf::add_challenge(&config, path)?;
                 println!("cd '{}'", challenge_dir.display());
             }
             CtfCommands::Done { flag, create, desc, no_archive, no_commit } => {

@@ -655,3 +655,193 @@ fn test_ctf_status_command() {
         .stdout(predicate::str::contains("Active"))
         .stdout(predicate::str::contains("Solved"));
 }
+
+// ── T004: Challenge metadata tests ────────────────────────────────────
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_add_creates_challenge_json() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    // Init event
+    env.cmd()
+        .args(&["ctf", "init", "MetaTestCTF"])
+        .assert()
+        .success();
+
+    // Add challenge
+    env.cmd()
+        .args(&["ctf", "add", "pwn/metadata-test"])
+        .assert()
+        .success();
+
+    // Verify .challenge.json was created
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains("MetaTestCTF"))
+        .collect();
+    assert!(!event_dirs.is_empty(), "Event directory should exist");
+
+    let event_dir = &event_dirs[0].path();
+    let challenge_json = event_dir.join("pwn/metadata-test/.challenge.json");
+    assert!(challenge_json.exists(), ".challenge.json should be created by ctf add");
+
+    // Verify contents
+    let content = fs::read_to_string(&challenge_json).unwrap();
+    let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    assert_eq!(meta["name"], "metadata-test");
+    assert_eq!(meta["category"], "pwn");
+    assert_eq!(meta["status"], "active");
+    assert_eq!(meta["schema_version"], 1);
+    assert!(meta["flag"].is_null());
+    assert!(meta["created_at"].is_string());
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_import_creates_challenge_json_with_imported_from() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    // Init event
+    env.cmd()
+        .args(&["ctf", "init", "ImportMetaCTF"])
+        .assert()
+        .success();
+
+    // Create a dummy zip file
+    let zip_path = env.path().join("test-chall.zip");
+    {
+        let file = fs::File::create(&zip_path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file("readme.txt", options).unwrap();
+        use std::io::Write;
+        zip.write_all(b"test challenge").unwrap();
+        zip.finish().unwrap();
+    }
+
+    // Import with explicit category + name + auto mode
+    env.cmd()
+        .args(&[
+            "ctf", "import",
+            zip_path.to_str().unwrap(),
+            "--category", "misc",
+            "--name", "import-meta-test",
+            "--auto",
+        ])
+        .assert()
+        .success();
+
+    // Find the challenge.json
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains("ImportMetaCTF"))
+        .collect();
+    let event_dir = &event_dirs[0].path();
+    let challenge_json = event_dir.join("misc/import-meta-test/.challenge.json");
+    assert!(challenge_json.exists(), ".challenge.json should be created by import");
+
+    let content = fs::read_to_string(&challenge_json).unwrap();
+    let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    assert_eq!(meta["name"], "import-meta-test");
+    assert_eq!(meta["category"], "misc");
+    assert_eq!(meta["status"], "active");
+    assert_eq!(meta["imported_from"], "test-chall.zip");
+}
+
+// ── T006: Add --cd tests ─────────────────────────────────────────────
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_add_with_cd_flag() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "CdTestCTF"])
+        .assert()
+        .success();
+
+    // Add with --cd should print cd command
+    env.cmd()
+        .args(&["ctf", "add", "web/cd-test", "--cd"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cd '"))
+        .stdout(predicate::str::contains("web/cd-test"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_add_without_cd_no_cd_output() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "NoCdTestCTF"])
+        .assert()
+        .success();
+
+    // Add without --cd should NOT print cd command
+    let output = env.cmd()
+        .args(&["ctf", "add", "web/no-cd-test"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("cd '"), "Should not print cd without --cd flag");
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_work_still_works_as_alias() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "WorkAliasCTF"])
+        .assert()
+        .success();
+
+    // work should still function and output cd
+    env.cmd()
+        .args(&["ctf", "work", "pwn/alias-test"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cd '"))
+        .stdout(predicate::str::contains("pwn/alias-test"));
+}
+
+#[test]
+fn test_work_hidden_from_help() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let output = cmd.args(&["ctf", "--help"]).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // work should be hidden
+    assert!(!stdout.contains("work"), "work should be hidden from help");
+    // add should be visible
+    assert!(stdout.contains("add"), "add should be visible in help");
+}
+
+#[test]
+fn test_done_hidden_from_help() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let output = cmd.args(&["ctf", "--help"]).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(!stdout.contains("done"), "done should be hidden from help");
+}

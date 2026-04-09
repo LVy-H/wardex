@@ -12,7 +12,7 @@ use anyhow::Result;
 use fs_err as fs;
 use std::path::{Path, PathBuf};
 
-use super::add_solve_script;
+use super::{add_solve_script, ChallengeMetadata};
 
 /// Confidence level for category detection
 #[derive(Debug, PartialEq)]
@@ -146,6 +146,11 @@ pub fn import_challenge(
 
     // ── Solve script template ──────────────────────────────────────────
     add_solve_script(&challenge_dir, &category)?;
+
+    // ── Challenge metadata ────────────────────────────────────────────
+    let mut meta = ChallengeMetadata::new(&challenge_name, &category);
+    meta.imported_from = Some(file_name.clone());
+    meta.save(&challenge_dir)?;
 
     println!("✓ Created {}/{}", category, challenge_name);
     Ok(())

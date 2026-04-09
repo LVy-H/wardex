@@ -105,6 +105,133 @@ impl CtfMeta {
     }
 }
 
+/// Schema version for .challenge.json — increment when fields change.
+pub const CHALLENGE_SCHEMA_VERSION: u32 = 1;
+
+/// Challenge completion status.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChallengeStatus {
+    Active,
+    Solved,
+    TeamSolved,
+    Unsolved,
+}
+
+impl std::fmt::Display for ChallengeStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Active => write!(f, "active"),
+            Self::Solved => write!(f, "solved"),
+            Self::TeamSolved => write!(f, "team-solved"),
+            Self::Unsolved => write!(f, "unsolved"),
+        }
+    }
+}
+
+/// Per-challenge metadata stored in .challenge.json
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChallengeMetadata {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
+    pub name: String,
+    pub category: String,
+    pub status: ChallengeStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solved_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_from: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shelved_at: Option<String>,
+    pub created_at: String,
+}
+
+fn default_schema_version() -> u32 {
+    CHALLENGE_SCHEMA_VERSION
+}
+
+impl ChallengeMetadata {
+    /// Create new metadata for a freshly created challenge.
+    pub fn new(name: &str, category: &str) -> Self {
+        Self {
+            schema_version: CHALLENGE_SCHEMA_VERSION,
+            name: name.to_string(),
+            category: category.to_string(),
+            status: ChallengeStatus::Active,
+            flag: None,
+            solved_by: None,
+            note: None,
+            imported_from: None,
+            shelved_at: None,
+            created_at: Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
+        }
+    }
+
+    /// Load metadata from a challenge directory.
+    /// Returns `Ok(None)` if no metadata file exists.
+    pub fn load(challenge_dir: &Path) -> Result<Option<Self>> {
+        let meta_path = challenge_dir.join(".challenge.json");
+        if meta_path.exists() {
+            let content = fs::read_to_string(&meta_path)?;
+            let meta: Self = serde_json::from_str(&content)?;
+            if meta.schema_version > CHALLENGE_SCHEMA_VERSION {
+                log::warn!(
+                    "Challenge metadata has schema version {} (this binary understands up to {}). Some fields may be ignored.",
+                    meta.schema_version, CHALLENGE_SCHEMA_VERSION
+                );
+            }
+            Ok(Some(meta))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Try loading .challenge.json; if absent but flag.txt exists, migrate.
+    pub fn load_or_migrate(challenge_dir: &Path) -> Result<Option<Self>> {
+        if let Some(meta) = Self::load(challenge_dir)? {
+            return Ok(Some(meta));
+        }
+
+        // Migration: flag.txt → .challenge.json
+        let flag_path = challenge_dir.join("flag.txt");
+        if flag_path.exists() {
+            let flag = fs::read_to_string(&flag_path)?.trim().to_string();
+            let name = challenge_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let category = challenge_dir
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("misc")
+                .to_string();
+
+            let mut meta = Self::new(&name, &category);
+            meta.status = ChallengeStatus::Solved;
+            meta.flag = Some(flag);
+            meta.save(challenge_dir)?;
+            log::info!("Migrated flag.txt → .challenge.json for {}", name);
+            return Ok(Some(meta));
+        }
+
+        Ok(None)
+    }
+
+    /// Save metadata to the challenge directory.
+    pub fn save(&self, challenge_dir: &Path) -> Result<()> {
+        let meta_path = challenge_dir.join(".challenge.json");
+        let content = serde_json::to_string_pretty(self)?;
+        fs::write(meta_path, content)?;
+        Ok(())
+    }
+}
+
 fn add_solve_script(challenge_dir: &Path, category: &str) -> Result<()> {
     let template = match category {
         "pwn" => crate::core::templates::SOLVE_PY_PWN,
