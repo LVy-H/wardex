@@ -4,35 +4,32 @@ This file turns the current CTF-shell strategy into an execution-ready backlog.
 
 The recommendation is to build Wardex in this order:
 
-1. Lock the CTF command contract.
-2. Implement shell completion and navigation support.
-3. Harden shell-safe output and context behavior.
-4. Improve challenge templates and writeup flow.
-5. Add release-quality verification around the flagship path.
+1. Lock the CTF command contract around the shelve system.
+2. Implement the shelve system and command alias mappings.
+3. Implement shell completion and navigation support.
+4. Harden shell-safe output and context behavior.
+5. Improve challenge templates and writeup flow.
+6. Add release-quality verification around the flagship path.
 
 ## Immediate Next Jobs
 
 These are the best next tasks to start with.
 
-### T001: Define The Canonical CTF Lifecycle
+### T001: Define The Canonical CTF Lifecycle (DONE)
 
 Goal: remove ambiguity from the current command surface.
 
-Deliverables:
+Status: Completed in `docs/ctf-lifecycle.md`.
 
-- document the intended flow from `ctf init` to `ctf finish`
-- define the role of `add`, `work`, `solve`, `done`, `archive`, and `finish`
-- review command names against the "natural verb first" rule
-- treat `work` as a likely alias or deprecation candidate unless it earns a clear distinct role
-- identify which commands are primary, alias-like, or redundant
-- decide which commands need shell-stable output guarantees
+Decisions made:
 
-Definition of done:
-
-- one clear lifecycle is documented
-- command overlap is explained or scheduled for cleanup
-- vague command names are explicitly accepted, aliased, or targeted for replacement
-- help text changes needed for the lifecycle are identified
+- `shelve` is the primary challenge completion verb (replaces `solve` and `done`)
+- `add --cd` replaces `work` for shell navigation
+- interactive-first design: navigable prompts by default, flags to skip
+- challenge metadata in `.challenge.json` (flag, status, notes, not `flag.txt`)
+- file triage with configurable blacklist (delete) and whitelist (keep)
+- core six commands: `init`, `use`, `add`, `import`, `shelve`, `finish`
+- `solve`, `done`, `work` become hidden aliases
 
 ### T002: Write RFC 0002 For Shell Completion Architecture
 
@@ -56,7 +53,7 @@ Goal: make shell-facing commands safe to wrap and evaluate.
 
 Deliverables:
 
-- specify output contracts for `ctf path`, `ctf path --cd`, `ctf work`, and `ctf use`
+- specify output contracts for `ctf path`, `ctf path --cd`, `ctf add --cd`, and `ctf use`
 - review whether any commands need a quieter or machine-oriented mode
 - document what output must remain stable across versions
 
@@ -65,9 +62,80 @@ Definition of done:
 - shell-facing commands have explicit output rules
 - risky output ambiguity is removed from the backlog of unknowns
 
-## Milestone 1: Completion MVP
+## Milestone 1: Shelve System Implementation
 
-### T004: Add A Completion Entry Point
+### T004: Implement Challenge Metadata Schema
+
+Goal: replace `flag.txt` with structured per-challenge metadata.
+
+Deliverables:
+
+- define and implement `ChallengeMetadata` struct (`name`, `category`, `status`, `flag`, `solved_by`, `note`, `imported_from`, `shelved_at`, `created_at`)
+- `.challenge.json` read/write alongside existing `.ctf_meta.json`
+- status values: `active`, `solved`, `team-solved`, `unsolved`
+- migration: read `flag.txt` if `.challenge.json` is absent (backwards compat)
+- `ctf add` creates `.challenge.json` with `active` status
+
+Depends on:
+
+- T001
+
+### T005: Implement `ctf shelve` Interactive Flow
+
+Goal: build the signature shelve command with interactive-first design.
+
+Deliverables:
+
+- status prompt (Select: solved / team-solved / unsolved)
+- flag input (Input, conditional on status)
+- file triage (MultiSelect with blacklist/whitelist pre-sorting and sizes)
+- note prompt (Input, optional)
+- archive prompt (Confirm: move to archives?)
+- each step skippable with flags (`--no-clean`, `--note`, `--move`/`--no-move`, `--auto`)
+- update `.challenge.json` with solve state
+- `solve` and `done` as hidden aliases
+
+Depends on:
+
+- T004
+
+### T006: Add `--cd` Flag To `ctf add`
+
+Goal: make the primary creation verb also serve shell navigation.
+
+Deliverables:
+
+- `--cd` flag on `ctf add` that outputs `cd '<path>'` after creation
+- `work` as hidden alias for `add --cd`
+- update help text to document `add` as the primary verb
+
+Depends on:
+
+- T001
+
+### T007: Implement File Triage System
+
+Goal: smart file cleanup during shelve with configurable patterns.
+
+Deliverables:
+
+- default blacklist patterns: `node_modules/`, `.venv/`, `venv/`, `core.*`, `*.o`, `.gdb_history`, `peda-*`, `__pycache__/` (when not from challenge)
+- default whitelist patterns: `solve.*`, `exploit.*`, `notes.md`, `Dockerfile`, `docker-compose.yml`, imported originals (from `.challenge.json` `imported_from`)
+- `config.yaml` keys for custom blacklist and whitelist
+- file size display in triage prompt
+- invert mode: select-to-keep instead of select-to-delete
+
+Depends on:
+
+- T005
+
+## Milestone 2: Shell Completion
+
+### T008: Write RFC 0002 For Shell Completion Architecture
+
+Same as T002. Moved here for ordering clarity.
+
+### T009: Add A Completion Entry Point
 
 Goal: give users a standard way to install completions.
 
@@ -81,44 +149,44 @@ Depends on:
 
 - T002
 
-### T005: Implement Static Completion For Commands And Flags
+### T010: Implement Static Completion For Commands And Flags
 
 Goal: complete the command tree and common options.
 
 Deliverables:
 
-- subcommand completion
+- subcommand completion (including `shelve` and hidden aliases)
 - flag completion
 - shell install examples for Bash and Zsh
 
 Depends on:
 
-- T004
+- T009
 
-### T006: Implement Dynamic Completion For Events And Categories
+### T011: Implement Dynamic Completion For Events And Categories
 
 Goal: reduce typing during real event work.
 
 Deliverables:
 
 - event-name completion for `ctf use`, `ctf path`, and related commands
-- category completion for `ctf add`, `ctf work`, and `ctf import` where applicable
+- category completion for `ctf add`, `ctf import` where applicable
 - sensible behavior when no active event exists
 
 Depends on:
 
 - T002
-- T004
+- T009
 
-## Milestone 2: Context And Navigation Hardening
+## Milestone 3: Context And Navigation Hardening
 
-### T007: Make Context Resolution Predictable
+### T012: Make Context Resolution Predictable
 
 Goal: ensure shell wrappers and completions can rely on Wardex behavior.
 
 Deliverables:
 
-- document and enforce precedence between current directory, active event, and fuzzy resolution
+- document and enforce precedence: local directory > global state > latest event
 - improve ambiguity errors
 - avoid silent wrong-target selection
 
@@ -126,23 +194,23 @@ Depends on:
 
 - T001
 
-### T008: Harden `ctf path --cd` And `ctf work`
+### T013: Harden `ctf path --cd` And `ctf add --cd`
 
 Goal: make navigation commands dependable enough for daily shell use.
 
 Deliverables:
 
-- verify eval-safe output
+- verify eval-safe output for both commands
 - align behavior with the command contract
 - add wrapper examples for Bash and Zsh
-- if `work` remains, treat it as shortcut-grade behavior and not the primary named path
 
 Depends on:
 
 - T003
-- T007
+- T006
+- T012
 
-### T009: Dynamic Challenge-Path Completion
+### T014: Dynamic Challenge-Path Completion
 
 Goal: complete real challenge targets, not just command names.
 
@@ -154,88 +222,62 @@ Deliverables:
 
 Depends on:
 
-- T006
-- T007
+- T011
+- T012
 
-## Milestone 3: CTF Workflow Polish
+## Milestone 4: CTF Workflow Polish
 
-### T010: Clarify `add` Versus `work`
-
-Goal: make creation and navigation feel intentional.
-
-Deliverables:
-
-- prefer `add` as the documented primary verb unless evidence strongly supports `work`
-- decide whether `work` remains only as an alias or power-user shortcut
-- make one clearly primary if both survive
-- align help text and examples with that choice
-
-Depends on:
-
-- T001
-
-### T011: Clarify `solve` Versus `done`
-
-Goal: remove ambiguity around solve-time behavior.
-
-Deliverables:
-
-- define whether `done` is a true alias or a workflow shortcut
-- align help text, docs, and output
-- review defaults around commit and archive behavior
-
-Depends on:
-
-- T001
-
-### T012: Improve Challenge Templates
+### T015: Improve Challenge Templates
 
 Goal: make new challenge folders useful immediately.
 
 Deliverables:
 
 - better category-specific scaffold defaults
-- a clear notes structure
+- `.challenge.json` created with useful defaults on `add` and `import`
 - tighter connection between templates and writeup generation
 
 Depends on:
 
-- T010
-- T011
+- T004
+- T006
 
-### T013: Improve Notes And Writeup Flow
+### T016: Improve Notes And Writeup Flow
 
 Goal: make solve artifacts more consistent.
 
 Deliverables:
 
 - define a default notes convention
-- improve `writeup` expectations and examples
-- ensure solve-time data feeds writeup assembly cleanly
+- improve `writeup` to read from `.challenge.json` metadata
+- ensure shelve-time data feeds writeup assembly cleanly
 
 Depends on:
 
-- T012
+- T005
+- T015
 
-## Milestone 4: Tests And Release Readiness
+## Milestone 5: Tests And Release Readiness
 
-### T014: Expand CTF Integration Coverage
+### T017: Expand CTF Integration Coverage
 
 Goal: protect the flagship workflow with regression tests.
 
 Deliverables:
 
-- tests for `ctf path`, `ctf work`, `ctf import`, `ctf solve`, `ctf finish`, and `ctf archive`
+- tests for `ctf path`, `ctf add --cd`, `ctf import`, `ctf shelve`, `ctf finish`
+- tests for challenge metadata lifecycle
 - tests for context resolution and fuzzy matching
 - tests for shell-oriented output behavior
 
 Depends on:
 
 - T003
-- T007
-- T008
+- T005
+- T012
+- T013
 
-### T015: Add Completion Verification
+### T018: Add Completion Verification
 
 Goal: ensure shell integration remains shippable.
 
@@ -246,12 +288,12 @@ Deliverables:
 
 Depends on:
 
-- T004
-- T005
-- T006
 - T009
+- T010
+- T011
+- T014
 
-### T016: Add CI For The Flagship Path
+### T019: Add CI For The Flagship Path
 
 Goal: make the CTF-shell surface safe to evolve.
 
@@ -264,35 +306,16 @@ Deliverables:
 
 Depends on:
 
-- T014
-- T015
-
-## Suggested Issue Creation Order
-
-If you want to turn this into GitHub issues, create them in this order:
-
-1. T001 Define the canonical CTF lifecycle
-2. T002 RFC 0002 for shell completion architecture
-3. T003 Stabilize shell-oriented output contracts
-4. T004 Add a completion entry point
-5. T006 Implement dynamic completion for events and categories
-6. T007 Make context resolution predictable
-7. T008 Harden `ctf path --cd` and `ctf work`
-8. T009 Dynamic challenge-path completion
-9. T010 Clarify `add` versus `work`
-10. T011 Clarify `solve` versus `done`
-11. T012 Improve challenge templates
-12. T013 Improve notes and writeup flow
-13. T014 Expand CTF integration coverage
-14. T015 Add completion verification
-15. T016 Add CI for the flagship path
+- T017
+- T018
 
 ## Suggested First Sprint
 
-If you want the shortest route to visible user value, do these first:
+Shortest route to visible user value:
 
-1. T001 Define the canonical CTF lifecycle
-2. T002 RFC 0002 for shell completion architecture
-3. T003 Stabilize shell-oriented output contracts
-4. T004 Add a completion entry point
-5. T006 Implement dynamic completion for events and categories
+1. T004 Implement challenge metadata schema
+2. T006 Add `--cd` flag to `ctf add`
+3. T005 Implement `ctf shelve` interactive flow
+4. T007 Implement file triage system
+5. T002 Write RFC 0002 for shell completion architecture
+6. T003 Stabilize shell-oriented output contracts
