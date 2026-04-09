@@ -141,6 +141,29 @@ enum CtfCommands {
     Check,
     /// Detailed status of challenges (Active vs Solved)
     Status,
+    /// Shelve a challenge — interactive cleanup, flag, notes, and archive
+    Shelve {
+        /// Flag value (skips status and flag prompts if provided)
+        flag: Option<String>,
+        /// Add a note without prompting
+        #[arg(long, short)]
+        note: Option<String>,
+        /// Skip file cleanup prompt
+        #[arg(long)]
+        no_clean: bool,
+        /// Move to archives without prompting
+        #[arg(long, short = 'm')]
+        r#move: bool,
+        /// Do not move to archives
+        #[arg(long, short = 'M')]
+        no_move: bool,
+        /// Skip git commit
+        #[arg(long)]
+        no_commit: bool,
+        /// Use smart defaults, skip all prompts
+        #[arg(long)]
+        auto: bool,
+    },
     /// Alias for add --cd (deprecated, use add --cd instead)
     #[command(hide = true)]
     Work {
@@ -422,6 +445,18 @@ fn main() -> Result<()> {
             }
             CtfCommands::Status => {
                 ctf::challenge_status(&config)?;
+            }
+            CtfCommands::Shelve { flag, note, no_clean, r#move, no_move, no_commit, auto } => {
+                ctf::shelve_challenge(
+                    &config,
+                    flag.clone(),
+                    note.clone(),
+                    *no_clean,
+                    *r#move,
+                    *no_move,
+                    *no_commit,
+                    *auto,
+                )?;
             }
             CtfCommands::Work { path } => {
                 let challenge_dir = ctf::add_challenge(&config, path)?;

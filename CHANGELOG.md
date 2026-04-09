@@ -57,17 +57,38 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
-## [Unreleased — 0.2.0-alpha5]
+## [0.2.0-alpha5] - 2026-04-09
 
-Target: `ctf shelve` interactive flow.
+### Summary
 
-### Planned
+Ships the **`ctf shelve` command** — Wardex's signature interactive challenge completion flow.
 
-| Feature | Description |
-|---------|-------------|
-| `ctf shelve` command | Interactive challenge completion — solved, team-solved, unsolved |
-| File triage system | Blacklist/whitelist cleanup during shelve |
-| Interactive prompts | Arrow-key navigable Select/MultiSelect as default UX |
+### Added
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| `ctf shelve` command | Interactive challenge completion with status, flag, file triage, notes, archive | Experimental |
+| File triage system | Blacklist/whitelist cleanup during shelve (node_modules, .venv, core, etc.) | Experimental |
+| Interactive prompts | Select, MultiSelect, Input, Confirm via dialoguer | Stable |
+| `--auto` flag | Skip all prompts with smart defaults | Stable |
+| `--note` flag | Add note without prompting | Stable |
+| `--no-clean` flag | Skip file triage | Stable |
+| `--move` / `--no-move` flags | Control archive behavior | Stable |
+| `--no-commit` flag | Skip git commit | Stable |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| `ctf solve` role | Primary solve command | Hidden alias for `ctf shelve` (still functional) |
+
+### Migration Guide
+
+#### From 0.2.0-alpha4
+
+**No breaking changes.** `ctf solve` continues to work as before.
+
+New: use `ctf shelve` for the full interactive flow, or `ctf shelve "flag{...}" --auto` for quick scripted use.
 
 ## [0.2.0-alpha4] - 2026-04-09
 

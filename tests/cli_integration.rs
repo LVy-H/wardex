@@ -845,3 +845,177 @@ fn test_done_hidden_from_help() {
 
     assert!(!stdout.contains("done"), "done should be hidden from help");
 }
+
+// ── T005: Shelve command tests ────────────────────────────────────────
+
+#[test]
+fn test_shelve_visible_in_help() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let output = cmd.args(&["ctf", "--help"]).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("shelve"), "shelve should be visible in help");
+}
+
+#[test]
+#[serial_test::serial]
+fn test_shelve_with_flag_auto_mode() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    // Init event and add challenge
+    env.cmd()
+        .args(&["ctf", "init", "ShelveTestCTF"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(&["ctf", "add", "pwn/shelve-test"])
+        .assert()
+        .success();
+
+    // Find challenge dir and cd into it for shelve
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains("ShelveTestCTF"))
+        .collect();
+    let event_dir = event_dirs[0].path();
+    let challenge_dir = event_dir.join("pwn/shelve-test");
+
+    // Init git repo for commit
+    std::process::Command::new("git")
+        .args(&["init"])
+        .current_dir(&event_dir)
+        .output()
+        .ok();
+    std::process::Command::new("git")
+        .args(&["add", "."])
+        .current_dir(&event_dir)
+        .output()
+        .ok();
+    std::process::Command::new("git")
+        .args(&["commit", "-m", "init"])
+        .current_dir(&event_dir)
+        .output()
+        .ok();
+
+    // Shelve with flag in auto mode (no prompts)
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.current_dir(&challenge_dir);
+    cmd.env("WX_PATHS_WORKSPACE", env.path());
+    cmd.env("XDG_CONFIG_HOME", env.path());
+    cmd.env("XDG_DATA_HOME", env.path());
+    cmd.env("HOME", env.path());
+    cmd.args(&["ctf", "shelve", "flag{test_shelve}", "--auto", "--no-move"]);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Solved: shelve-test"));
+
+    // Verify .challenge.json was updated
+    let meta_path = challenge_dir.join(".challenge.json");
+    let content = fs::read_to_string(&meta_path).unwrap();
+    let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    assert_eq!(meta["status"], "solved");
+    assert_eq!(meta["flag"], "flag{test_shelve}");
+    assert_eq!(meta["solved_by"], "me");
+    assert!(meta["shelved_at"].is_string());
+}
+
+#[test]
+#[serial_test::serial]
+fn test_shelve_auto_unsolved() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "ShelveUnsolvedCTF"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(&["ctf", "add", "crypto/unsolved-test"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains("ShelveUnsolvedCTF"))
+        .collect();
+    let event_dir = event_dirs[0].path();
+    let challenge_dir = event_dir.join("crypto/unsolved-test");
+
+    // Shelve without flag in auto mode → unsolved
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.current_dir(&challenge_dir);
+    cmd.env("WX_PATHS_WORKSPACE", env.path());
+    cmd.env("XDG_CONFIG_HOME", env.path());
+    cmd.env("XDG_DATA_HOME", env.path());
+    cmd.env("HOME", env.path());
+    cmd.args(&["ctf", "shelve", "--auto", "--no-move", "--no-commit"]);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Shelved (unsolved)"));
+
+    // Verify metadata
+    let content = fs::read_to_string(challenge_dir.join(".challenge.json")).unwrap();
+    let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    assert_eq!(meta["status"], "unsolved");
+    assert!(meta["flag"].is_null());
+}
+
+#[test]
+#[serial_test::serial]
+fn test_shelve_with_note_flag() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "ShelveNoteCTF"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(&["ctf", "add", "web/note-test"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().contains("ShelveNoteCTF"))
+        .collect();
+    let event_dir = event_dirs[0].path();
+    let challenge_dir = event_dir.join("web/note-test");
+
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.current_dir(&challenge_dir);
+    cmd.env("WX_PATHS_WORKSPACE", env.path());
+    cmd.env("XDG_CONFIG_HOME", env.path());
+    cmd.env("XDG_DATA_HOME", env.path());
+    cmd.env("HOME", env.path());
+    cmd.args(&[
+        "ctf", "shelve", "flag{noted}",
+        "--note", "SQL injection in login form",
+        "--auto", "--no-move", "--no-commit",
+    ]);
+
+    cmd.assert().success();
+
+    let content = fs::read_to_string(challenge_dir.join(".challenge.json")).unwrap();
+    let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    assert_eq!(meta["note"], "SQL injection in login form");
+    assert_eq!(meta["flag"], "flag{noted}");
+}
