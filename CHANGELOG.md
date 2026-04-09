@@ -57,55 +57,60 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [Unreleased — 0.2.0-alpha5]
+
+Target: `ctf shelve` interactive flow.
+
+### Planned
+
+| Feature | Description |
+|---------|-------------|
+| `ctf shelve` command | Interactive challenge completion — solved, team-solved, unsolved |
+| File triage system | Blacklist/whitelist cleanup during shelve |
+| Interactive prompts | Arrow-key navigable Select/MultiSelect as default UX |
+
 ## [0.2.0-alpha4] - 2026-04-09
 
 ### Summary
 
-Introduces the **shelve system** as Wardex's signature feature for challenge lifecycle management.
-This release establishes the CTF-shell-first product direction with interactive-first design,
-per-challenge metadata, and a reduced command vocabulary.
+Lays the groundwork for the shelve system: per-challenge metadata, `add --cd` for shell
+navigation, and comprehensive planning docs establishing the CTF-shell-first direction.
 
 ### Added
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| `ctf shelve` command | Interactive challenge completion — handles solved, team-solved, and unsolved outcomes | Experimental |
 | `ctf add --cd` flag | Print `cd '<path>'` after creation for shell eval | Stable |
 | `.challenge.json` metadata | Per-challenge structured metadata (flag, status, notes, imported_from) | Experimental |
-| File triage system | Blacklist/whitelist-based cleanup during shelve with configurable patterns | Experimental |
-| Interactive prompts | Arrow-key navigable Select/MultiSelect prompts as default UX | Stable |
+| Schema versioning | `schema_version` field in metadata files for auto-migration | Stable |
 | CLI design principles | 11 core principles documented in `docs/CLI_DESIGN.md` | - |
 | Development plan | Phased roadmap, workstreams, task list in `docs/plan/` | - |
 | RFC process | Lightweight RFC process for CLI changes in `docs/rfcs/` | - |
 | RFC 0001 | CTF-shell-first product direction | Accepted |
-| CTF lifecycle doc | Canonical lifecycle with shelve system in `docs/ctf-lifecycle.md` | - |
+| CTF lifecycle doc | Canonical lifecycle with shelve system design in `docs/ctf-lifecycle.md` | - |
 
 ### Changed
 
 | Change | Before | After |
 |--------|--------|-------|
-| Challenge completion verb | `ctf solve` / `ctf done` | `ctf shelve` (primary) |
 | Challenge creation navigation | `ctf work <cat/name>` | `ctf add <cat/name> --cd` |
-| Flag storage | `flag.txt` file | `flag` field in `.challenge.json` |
+| Flag storage (new challenges) | No metadata | `.challenge.json` with `active` status |
 | Challenge status tracking | Directory location only | `.challenge.json` metadata + directory |
-| Default interaction mode | Flag-driven | Interactive prompts by default |
+| `add_challenge()` return | `Result<()>` | `Result<PathBuf>` |
 
 ### Deprecated
 
 | Command | Replacement | Notes |
 |---------|-------------|-------|
 | `ctf work <cat/name>` | `ctf add <cat/name> --cd` | Hidden alias, still functional |
-| `ctf solve <flag>` | `ctf shelve [flag]` | Hidden alias, still functional |
-| `ctf done <flag>` | `ctf shelve [flag]` | Hidden alias, still functional |
-| `flag.txt` | `.challenge.json` | Read for backwards compat, no longer written |
+| `ctf done <flag>` | `ctf shelve [flag]` (coming in alpha5) | Hidden from help, still functional |
+| `flag.txt` | `.challenge.json` | Read for backwards compat, no longer written by new commands |
 
 ### Experimental
 
-These features are functional but their interface may change in future releases:
+These features are functional but their interface may change:
 
-- `ctf shelve` interactive flow (prompt order, flag names)
 - `.challenge.json` schema (fields may be added)
-- File triage blacklist/whitelist patterns
 - `ChallengeStatus` enum values
 
 ### Migration Guide
@@ -114,16 +119,15 @@ These features are functional but their interface may change in future releases:
 
 **No breaking changes.** All existing commands continue to work:
 
-- `ctf solve` and `ctf done` still work as hidden aliases for `ctf shelve`
 - `ctf work` still works as a hidden alias for `ctf add --cd`
+- `ctf solve` and `ctf done` still work unchanged
 - Challenges without `.challenge.json` are handled transparently
 - If `flag.txt` exists and `.challenge.json` does not, metadata is migrated on read
 
 **Recommended updates:**
 
 1. Replace `ctf work` with `ctf add --cd` in shell aliases and scripts
-2. Replace `ctf solve` with `ctf shelve` in workflows
-3. Update shell wrappers that parse `ctf work` output (format unchanged: `cd '<path>'`)
+2. Update shell wrappers that parse `ctf work` output (format unchanged: `cd '<path>'`)
 
 ### Internal
 
