@@ -57,6 +57,57 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.2.0-alpha6] - 2026-04-09
+
+### Summary
+
+Ships **shell completions** for Bash and Zsh, **configurable file triage** patterns,
+and design docs (RFC 0002, output contracts).
+
+### Added
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| `wardex completions <shell>` | Generate Bash/Zsh completion scripts | Stable |
+| Static completion | Subcommands and flags complete via TAB | Stable |
+| Configurable triage patterns | `ctf.shelve.blacklist` and `ctf.shelve.whitelist` in config.yaml | Stable |
+| RFC 0002 | Shell completion architecture (Accepted) | - |
+| Shell output contracts | Documented stable vs unstable output in `docs/shell-output-contracts.md` | - |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| File triage patterns | Hardcoded in shelve.rs | Configurable via `ctf.shelve.blacklist`/`whitelist` in config.yaml |
+
+### Migration Guide
+
+#### From 0.2.0-alpha5
+
+**No breaking changes.** New features only.
+
+Install completions:
+```bash
+# Bash
+wardex completions bash > ~/.local/share/bash-completion/completions/wardex
+# Zsh
+wardex completions zsh > ~/.zfunc/_wardex
+```
+
+Optional: add custom triage patterns to config.yaml:
+```yaml
+ctf:
+  shelve:
+    blacklist:
+      - node_modules
+      - .venv
+      - __pycache__
+    whitelist:
+      - solve.
+      - notes.md
+      - Dockerfile
+```
+
 ## [0.2.0-alpha5] - 2026-04-09
 
 ### Summary
