@@ -3000,7 +3000,7 @@ dependencies = [
 
 [[package]]
 name = "wardex"
-version = "0.2.0-alpha3"
+version = "0.2.0-alpha4"
 dependencies = [
  "anyhow",
  "assert_cmd",
