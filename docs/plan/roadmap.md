@@ -8,10 +8,11 @@ Goal: define the exact CTF and shell experience Wardex wants to own.
 
 ### Deliverables
 
-- Define the supported CTF lifecycle for the next release: `init`, `use`, `info`, `path`, `work`, `add`, `import`, `solve`, `done`, `status`, `writeup`, `finish`, `archive`.
+- Define the supported CTF lifecycle around the shelve system: core six (`init`, `use`, `add`, `import`, `shelve`, `finish`) plus supporting commands (`path`, `info`, `status`, `list`, `check`, `schedule`, `writeup`, `archive`).
+- Implement `ctf shelve` with interactive-first design and `.challenge.json` metadata.
+- Add `--cd` to `ctf add`; make `work`, `solve`, `done` hidden aliases.
 - Decide which commands must be completion-aware and what each one should suggest.
 - Document the intended shell story for Bash and Zsh first.
-- Clean up docs so the flagship CTF workflow is clear and current.
 
 ### Exit Criteria
 
@@ -25,7 +26,7 @@ Goal: make the core event and challenge workflow reliable enough for active comp
 
 ### Deliverables
 
-- Expand integration coverage for `ctf init`, `use`, `path`, `work`, `import`, `solve`, `done`, `finish`, and `archive`.
+- Expand integration coverage for `ctf init`, `use`, `path`, `add --cd`, `import`, `shelve`, `finish`, and `archive`.
 - Add regression tests for context resolution, active-event fallback, fuzzy matching, and shell-oriented output.
 - Review error messages for time-sensitive or stateful CTF commands.
 - Audit path handling, archive handling, cross-device moves, and challenge name normalization.
@@ -45,7 +46,7 @@ Goal: make Wardex feel native in the terminal instead of merely callable from it
 
 - Implement shell completion generation or maintained completion scripts for Bash and Zsh.
 - Support tab completion for subcommands, event names, categories, challenge paths, and key flags where practical.
-- Refine shell integration around `ctf path`, `ctf work`, `ctf use`, and related wrappers.
+- Refine shell integration around `ctf path`, `ctf add --cd`, `ctf use`, and related wrappers.
 - Add shell-install docs and example aliases/functions that feel low-friction.
 - Ensure machine-friendly output modes stay stable for shell evaluation and scripting.
 
@@ -61,10 +62,10 @@ Goal: improve depth and speed for repeat CTF usage once the shell layer is solid
 
 ### Deliverables
 
-- Improve command output consistency across `status`, `info`, `writeup`, and solve flows.
+- Improve command output consistency across `status`, `info`, `writeup`, and shelve flows.
 - Standardize challenge templates and per-category scaffolding behavior.
-- Add richer writeup assembly and notes conventions.
-- Add structured config options for categories, templates, heuristics, and shell behavior.
+- Add richer writeup assembly and notes conventions using `.challenge.json` metadata.
+- Add structured config options for categories, templates, blacklist/whitelist patterns, and shell behavior.
 - Clarify whether the TUI has a role in CTF operations or remains optional.
 
 ### Exit Criteria
@@ -92,7 +93,7 @@ Goal: revisit non-CTF expansion only after the flagship workflow is strong.
 
 ## Recommended Release Cadence
 
-- `0.2.x`: CTF contract, lifecycle hardening, and shell completion
+- `0.2.x`: Shelve system, CTF contract, lifecycle hardening, and shell completion
 - `0.3.x`: CTF workflow polish and template/config depth
 - `0.4.x`: selective expansion beyond the flagship CTF path
 - `0.5.x+`: advanced capabilities after core stabilization
