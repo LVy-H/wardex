@@ -1019,3 +1019,34 @@ fn test_shelve_with_note_flag() {
     assert_eq!(meta["note"], "SQL injection in login form");
     assert_eq!(meta["flag"], "flag{noted}");
 }
+
+// ── T009/T010: Completion tests ───────────────────────────────────────
+
+#[test]
+fn test_completions_bash() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.args(&["completions", "bash"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("_wardex()"))
+        .stdout(predicate::str::contains("wardex__ctf__shelve"));
+}
+
+#[test]
+fn test_completions_zsh() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.args(&["completions", "zsh"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("#compdef wardex"))
+        .stdout(predicate::str::contains("shelve"));
+}
+
+#[test]
+fn test_completions_visible_in_help() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let output = cmd.args(&["--help"]).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("completions"), "completions should be visible in help");
+}

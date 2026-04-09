@@ -3,7 +3,8 @@
 //! Focused on CTF management.
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use log::{error, info, warn};
 use std::path::PathBuf;
 use wardex::config::Config;
@@ -258,6 +259,11 @@ enum Commands {
         #[command(subcommand)]
         command: ConfigCommands,
     },
+    /// Generate shell completion scripts
+    Completions {
+        #[arg(help = "Shell to generate completions for (bash, zsh)")]
+        shell: Shell,
+    },
 }
 
 /// Search for config file in priority order
@@ -297,6 +303,13 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+
+    // Completions command — no config needed
+    if let Commands::Completions { shell } = &cli.command {
+        let mut cmd = Cli::command();
+        clap_complete::generate(*shell, &mut cmd, "wardex", &mut std::io::stdout());
+        return Ok(());
+    }
 
     // Check if we are initializing config (don't load it if so)
     if let Commands::Config {
@@ -530,6 +543,7 @@ fn main() -> Result<()> {
         Commands::Config { command } => {
             handle_config_command(&config, command, cli.config.as_ref())?;
         }
+        Commands::Completions { .. } => unreachable!("handled before config loading"),
     }
 
     Ok(())
