@@ -87,10 +87,12 @@ enum CtfCommands {
         #[arg(long)]
         no_commit: bool,
     },
-    /// Add a new challenge to current event
+    /// Add a new challenge to current event (--cd to navigate)
     Add {
         #[arg(help = "Category/Name (e.g. pwn/stack-buffer)")]
         path: String,
+        #[arg(long, help = "Output cd command for shell eval after creation")]
+        cd: bool,
     },
     /// Generate writeup from notes
     Writeup,
@@ -139,12 +141,14 @@ enum CtfCommands {
     Check,
     /// Detailed status of challenges (Active vs Solved)
     Status,
-    /// Create a challenge and print its path (add + cd shortcut)
+    /// Alias for add --cd (deprecated, use add --cd instead)
+    #[command(hide = true)]
     Work {
         #[arg(help = "Category/Name (e.g. pwn/stack-buffer)")]
         path: String,
     },
-    /// Solve and optionally skip archive/commit (alias for solve with flags)
+    /// Alias for shelve (deprecated, use shelve instead)
+    #[command(hide = true)]
     Done {
         /// The flag value
         flag: String,
@@ -371,8 +375,19 @@ fn main() -> Result<()> {
             CtfCommands::Solve { flag, create, desc, no_archive, no_commit } => {
                 ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
             }
-            CtfCommands::Add { path } => {
+            CtfCommands::Add { path, cd } => {
                 ctf::add_challenge(&config, path)?;
+                if *cd {
+                    let event_root = ctf::get_active_event_root()?;
+                    let parts: Vec<&str> = path.split('/').collect();
+                    let challenge_dir = if parts.len() == 2 {
+                        event_root.join(parts[0]).join(parts[1])
+                    } else {
+                        let cwd = std::env::current_dir()?;
+                        cwd.join(parts[0])
+                    };
+                    println!("cd '{}'", challenge_dir.display());
+                }
             }
             CtfCommands::Writeup => {
                 ctf::generate_writeup(&config)?;
