@@ -79,6 +79,55 @@ pub struct CtfConfig {
     pub template_file: Option<String>,
     #[serde(default = "default_grace_period_hours")]
     pub grace_period_hours: u32,
+    #[serde(default)]
+    pub shelve: ShelveConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ShelveConfig {
+    /// File/directory patterns to pre-select for deletion during triage.
+    #[serde(default = "default_blacklist")]
+    pub blacklist: Vec<String>,
+    /// File/directory patterns to always keep (never shown in triage).
+    #[serde(default = "default_whitelist")]
+    pub whitelist: Vec<String>,
+}
+
+fn default_blacklist() -> Vec<String> {
+    vec![
+        "node_modules".into(),
+        ".venv".into(),
+        "venv".into(),
+        "__pycache__".into(),
+        ".gdb_history".into(),
+        "peda-session-".into(),
+        "core".into(),
+        ".cache".into(),
+    ]
+}
+
+fn default_whitelist() -> Vec<String> {
+    vec![
+        "solve.".into(),
+        "exploit.".into(),
+        "solution.".into(),
+        "notes.md".into(),
+        "README.md".into(),
+        "Dockerfile".into(),
+        "docker-compose".into(),
+        ".challenge.json".into(),
+        ".ctf_meta.json".into(),
+        "flag".into(),
+    ]
+}
+
+impl Default for ShelveConfig {
+    fn default() -> Self {
+        Self {
+            blacklist: default_blacklist(),
+            whitelist: default_whitelist(),
+        }
+    }
 }
 
 fn default_grace_period_hours() -> u32 {
@@ -96,6 +145,7 @@ impl Default for CtfConfig {
             ],
             template_file: None,
             grace_period_hours: 6,
+            shelve: ShelveConfig::default(),
         }
     }
 }

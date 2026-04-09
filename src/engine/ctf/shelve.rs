@@ -11,31 +11,6 @@ use std::path::PathBuf;
 
 use super::{ChallengeMetadata, ChallengeStatus, CtfMeta};
 
-/// Default patterns for files to delete (reclaim disk space).
-const DEFAULT_BLACKLIST: &[&str] = &[
-    "node_modules",
-    ".venv",
-    "venv",
-    "__pycache__",
-    ".gdb_history",
-    "peda-session-",
-    "core",
-    ".cache",
-];
-
-/// Default patterns for files to always keep.
-const DEFAULT_WHITELIST: &[&str] = &[
-    "solve.",
-    "exploit.",
-    "solution.",
-    "notes.md",
-    "README.md",
-    "Dockerfile",
-    "docker-compose",
-    ".challenge.json",
-    ".ctf_meta.json",
-    "flag",
-];
 
 #[allow(clippy::too_many_arguments)]
 pub fn shelve_challenge(
@@ -103,7 +78,7 @@ pub fn shelve_challenge(
 
     // ── Step 2: File triage ───────────────────────────────────────────
     if !no_clean && !auto {
-        triage_files(&current_dir, &meta)?;
+        triage_files(&current_dir, &meta, config)?;
     }
 
     // ── Step 3: Note ──────────────────────────────────────────────────
@@ -197,16 +172,19 @@ fn prompt_status() -> Result<(ChallengeStatus, Option<String>)> {
     }
 }
 
-/// File triage with blacklist/whitelist smart defaults.
-fn triage_files(challenge_dir: &PathBuf, meta: &ChallengeMetadata) -> Result<()> {
+/// File triage with blacklist/whitelist from config.
+fn triage_files(challenge_dir: &PathBuf, meta: &ChallengeMetadata, config: &Config) -> Result<()> {
+    let blacklist = &config.ctf.shelve.blacklist;
+    let whitelist = &config.ctf.shelve.whitelist;
+
     let mut entries: Vec<(String, u64, bool)> = Vec::new(); // (name, size, default_delete)
 
     for entry in std::fs::read_dir(challenge_dir)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().to_string();
         let size = dir_size(&entry.path());
-        let is_blacklisted = DEFAULT_BLACKLIST.iter().any(|pat| name.starts_with(pat));
-        let is_whitelisted = DEFAULT_WHITELIST.iter().any(|pat| name.starts_with(pat));
+        let is_blacklisted = blacklist.iter().any(|pat| name.starts_with(pat.as_str()));
+        let is_whitelisted = whitelist.iter().any(|pat| name.starts_with(pat.as_str()));
 
         // Also whitelist the imported original
         let is_imported = meta
