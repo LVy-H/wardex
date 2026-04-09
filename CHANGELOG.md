@@ -5,6 +5,41 @@ All notable changes to Wardex will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Wardex uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with alpha pre-release tags.
 
+## Versioning Policy
+
+### Development Phases
+
+| Phase | Version pattern | Stability | Example |
+|-------|----------------|-----------|---------|
+| **Alpha** | `0.x.0-alphaN` | Breaking changes expected. Commands, flags, output, and metadata schemas may change between alphas. | `0.2.0-alpha4` |
+| **Beta** | `0.x.0-betaN` | Feature-complete. Breaking changes only for critical bugs. | `0.2.0-beta1` |
+| **Release** | `0.x.0` | Stable within the minor version. | `0.2.0` |
+
+### Support Policy
+
+- **Only the latest version is supported.** There are no backports, security patches, or bug fixes for older versions.
+- **No backward compatibility guarantee** during alpha. Upgrading may require re-running commands or migrating metadata.
+- **Best-effort migration** is provided where practical. Wardex includes auto-migration for metadata schemas (see below) but does not guarantee migration for all changes.
+- Users should always upgrade to the latest version.
+
+### Metadata Schema Versioning
+
+All metadata files (`.ctf_meta.json`, `.challenge.json`) include a `schema_version` integer field.
+
+| Behavior | Description |
+|----------|-------------|
+| **Auto-migrate on read** | When Wardex loads a file with an older schema version, it upgrades transparently. |
+| **Forward compat warning** | If the file has a newer schema version than the binary, Wardex warns but tries best-effort parsing. |
+| **Pre-schema files** | Files without `schema_version` are treated as version 0 and migrated on first access. |
+| **flag.txt migration** | Challenges with `flag.txt` but no `.challenge.json` get metadata auto-created on read. |
+
+Schema version history:
+
+| Version | Introduced in | Changes |
+|---------|---------------|---------|
+| 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
+| 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
+
 ## [0.2.0-alpha4] - 2026-04-09
 
 ### Summary
