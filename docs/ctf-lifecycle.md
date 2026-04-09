@@ -177,6 +177,7 @@ Per-challenge metadata (`.challenge.json`):
 
 ```json
 {
+  "schema_version": 1,
   "name": "heap-overflow",
   "category": "pwn",
   "status": "solved",
@@ -190,6 +191,17 @@ Per-challenge metadata (`.challenge.json`):
 ```
 
 Status values: `active`, `solved`, `team-solved`, `unsolved`.
+
+### Schema Versioning
+
+All metadata files include a `schema_version` field (integer, starts at 1). This enables:
+
+- **Auto-migration on read**: When Wardex loads a file with an older schema version, it upgrades in place transparently.
+- **Forward compatibility warning**: If the file has a higher schema version than the binary understands, Wardex warns but continues with best-effort parsing.
+- **Migration from pre-schema files**: Files without `schema_version` are treated as version 0 (pre-shelve era). Wardex migrates them:
+  - `.ctf_meta.json` without version: adds `schema_version: 1` on next save
+  - Missing `.challenge.json` with existing `flag.txt`: creates metadata from flag content
+  - Challenges found in archive directories: inferred as `solved` status
 
 Benefits:
 

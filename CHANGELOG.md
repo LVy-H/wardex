@@ -1,0 +1,102 @@
+# Changelog
+
+All notable changes to Wardex will be documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Wardex uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with alpha pre-release tags.
+
+## [0.2.0-alpha4] - 2026-04-09
+
+### Summary
+
+Introduces the **shelve system** as Wardex's signature feature for challenge lifecycle management.
+This release establishes the CTF-shell-first product direction with interactive-first design,
+per-challenge metadata, and a reduced command vocabulary.
+
+### Added
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| `ctf shelve` command | Interactive challenge completion — handles solved, team-solved, and unsolved outcomes | Experimental |
+| `ctf add --cd` flag | Print `cd '<path>'` after creation for shell eval | Stable |
+| `.challenge.json` metadata | Per-challenge structured metadata (flag, status, notes, imported_from) | Experimental |
+| File triage system | Blacklist/whitelist-based cleanup during shelve with configurable patterns | Experimental |
+| Interactive prompts | Arrow-key navigable Select/MultiSelect prompts as default UX | Stable |
+| CLI design principles | 11 core principles documented in `docs/CLI_DESIGN.md` | - |
+| Development plan | Phased roadmap, workstreams, task list in `docs/plan/` | - |
+| RFC process | Lightweight RFC process for CLI changes in `docs/rfcs/` | - |
+| RFC 0001 | CTF-shell-first product direction | Accepted |
+| CTF lifecycle doc | Canonical lifecycle with shelve system in `docs/ctf-lifecycle.md` | - |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| Challenge completion verb | `ctf solve` / `ctf done` | `ctf shelve` (primary) |
+| Challenge creation navigation | `ctf work <cat/name>` | `ctf add <cat/name> --cd` |
+| Flag storage | `flag.txt` file | `flag` field in `.challenge.json` |
+| Challenge status tracking | Directory location only | `.challenge.json` metadata + directory |
+| Default interaction mode | Flag-driven | Interactive prompts by default |
+
+### Deprecated
+
+| Command | Replacement | Notes |
+|---------|-------------|-------|
+| `ctf work <cat/name>` | `ctf add <cat/name> --cd` | Hidden alias, still functional |
+| `ctf solve <flag>` | `ctf shelve [flag]` | Hidden alias, still functional |
+| `ctf done <flag>` | `ctf shelve [flag]` | Hidden alias, still functional |
+| `flag.txt` | `.challenge.json` | Read for backwards compat, no longer written |
+
+### Experimental
+
+These features are functional but their interface may change in future releases:
+
+- `ctf shelve` interactive flow (prompt order, flag names)
+- `.challenge.json` schema (fields may be added)
+- File triage blacklist/whitelist patterns
+- `ChallengeStatus` enum values
+
+### Migration Guide
+
+#### From 0.2.0-alpha3
+
+**No breaking changes.** All existing commands continue to work:
+
+- `ctf solve` and `ctf done` still work as hidden aliases for `ctf shelve`
+- `ctf work` still works as a hidden alias for `ctf add --cd`
+- Challenges without `.challenge.json` are handled transparently
+- If `flag.txt` exists and `.challenge.json` does not, metadata is migrated on read
+
+**Recommended updates:**
+
+1. Replace `ctf work` with `ctf add --cd` in shell aliases and scripts
+2. Replace `ctf solve` with `ctf shelve` in workflows
+3. Update shell wrappers that parse `ctf work` output (format unchanged: `cd '<path>'`)
+
+### Internal
+
+- Restructured documentation: `docs/plan/`, `docs/rfcs/`, `docs/CLI_DESIGN.md`
+- Added `ChallengeMetadata` and `ChallengeStatus` types in `src/engine/ctf/mod.rs`
+- `add_challenge()` now returns `Result<PathBuf>` instead of `Result<()>`
+
+## [0.2.0-alpha3] - 2026-04-09
+
+### Added
+
+- Git added as test dependency
+- Version bump from alpha2
+
+## [0.2.0-alpha2] - 2026-04-09
+
+### Changed
+
+- Default workspace path set to user's home directory
+- Refined config loading behavior
+
+## [0.2.0-alpha1] - 2026-04-09
+
+### Added
+
+- Centralized command output handling (`src/output.rs`)
+- CTF workflow shortcuts and enhanced shell integration
+- Architecture documentation
