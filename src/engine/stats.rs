@@ -86,9 +86,14 @@ pub fn get_stats(config: &Config) -> Result<WorkspaceStats> {
         }
     }
 
-    let (total_size, total_files, file_types) =
-        Arc::try_unwrap(stats_mutex).unwrap().into_inner().unwrap();
-    let total_repos = Arc::try_unwrap(repos_count).unwrap().into_inner().unwrap();
+    let (total_size, total_files, file_types) = Arc::try_unwrap(stats_mutex)
+        .map_err(|_| anyhow::anyhow!("Stats collection still in use"))?
+        .into_inner()
+        .map_err(|e| anyhow::anyhow!("Stats mutex poisoned: {}", e))?;
+    let total_repos = Arc::try_unwrap(repos_count)
+        .map_err(|_| anyhow::anyhow!("Repo counter still in use"))?
+        .into_inner()
+        .map_err(|e| anyhow::anyhow!("Repo counter mutex poisoned: {}", e))?;
 
     stats.total_size_bytes = total_size;
     stats.total_files = total_files;
@@ -122,7 +127,6 @@ pub fn print_stats(stats: &WorkspaceStats) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn test_workspace_stats_default() {
