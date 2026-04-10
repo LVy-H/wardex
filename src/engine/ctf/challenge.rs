@@ -21,7 +21,10 @@ pub fn add_challenge(_config: &Config, path: &str) -> Result<std::path::PathBuf>
         let current_dir = std::env::current_dir()?;
         // Check if current dir is a direct child of event_root
         if current_dir.parent() == Some(&event_root) {
-            let cat_name = current_dir.file_name().unwrap().to_string_lossy();
+            let cat_name = current_dir
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("Cannot determine category: current directory has no name"))?
+                .to_string_lossy();
             (cat_name.to_string(), parts[0].to_string())
         } else {
             anyhow::bail!(
@@ -86,7 +89,11 @@ pub fn solve_challenge(
             let cwd = std::env::current_dir()?;
             if let Some(parent) = cwd.parent() {
                 if parent == event_root {
-                    let cat_name = cwd.file_name().unwrap().to_string_lossy().to_string();
+                    let cat_name = cwd
+                        .file_name()
+                        .ok_or_else(|| anyhow::anyhow!("Cannot determine category: current directory has no name"))?
+                        .to_string_lossy()
+                        .to_string();
                     (cat_name, parts[0].to_string())
                 } else {
                     anyhow::bail!(
@@ -244,8 +251,14 @@ pub fn solve_challenge(
                 let meta_path = event_dir.join(".ctf_meta.json");
 
                 if meta_path.exists() {
-                    let category_name = category_dir.file_name().unwrap().to_string_lossy();
-                    let event_name = event_dir.file_name().unwrap().to_string_lossy();
+                    let category_name = category_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let event_name = event_dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
                     let year = if let Some(meta) = CtfMeta::load(event_dir).ok().flatten() {
                         meta.year.to_string()
                     } else {
@@ -254,11 +267,13 @@ pub fn solve_challenge(
 
                     let target_dir = config
                         .ctf_archive_path(&year, &event_name)
-                        .join(category_name.as_ref())
+                        .join(&category_name)
                         .join(dir_name);
 
-                    if !target_dir.parent().unwrap().exists() {
-                        fs::create_dir_all(target_dir.parent().unwrap())?;
+                    if let Some(parent) = target_dir.parent() {
+                        if !parent.exists() {
+                            fs::create_dir_all(parent)?;
+                        }
                     }
 
                     println!("Archiving to {:?}...", target_dir);
@@ -266,8 +281,12 @@ pub fn solve_challenge(
                     // Try rename first, fallback to copy+delete for cross-device
                     if fs::rename(&current_dir, &target_dir).is_err() {
                         let options = fs_extra::dir::CopyOptions::new();
-                        fs_extra::dir::copy(&current_dir, target_dir.parent().unwrap(), &options)
-                            .context("Failed to archive (cross-device move)")?;
+                        fs_extra::dir::copy(
+                            &current_dir,
+                            target_dir.parent().context("Archive target path has no parent directory")?,
+                            &options,
+                        )
+                        .context("Failed to archive (cross-device move)")?;
                         fs::remove_dir_all(&current_dir)?;
                     }
 
@@ -351,7 +370,10 @@ pub fn challenge_status(config: &Config) -> Result<()> {
     let meta = CtfMeta::load(&event_root)?
         .ok_or_else(|| anyhow::anyhow!("No CTF metadata found (.ctf_meta.json)"))?;
     
-    let event_name = event_root.file_name().unwrap().to_string_lossy();
+    let event_name = event_root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     let archives_root = config.ctf_archive_path(&meta.year.to_string(), &event_name);
         
     let mut statuses = Vec::new();
