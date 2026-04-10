@@ -40,7 +40,7 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "wardex";
-            version = "0.2.0-alpha3";
+            version = "0.2.0-beta1";
 
             src = ./.;
 
@@ -85,6 +85,9 @@
         };
       }
     ) // {
+      overlays.default = final: prev: {
+        wardex = self.packages.${prev.system}.default;
+      };
       homeManagerModules.default = import ./nix/hm-module.nix { inherit self; };
     };
 }

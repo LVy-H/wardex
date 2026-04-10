@@ -32,11 +32,35 @@ in
         Configuration written to {file}`$XDG_CONFIG_HOME/wardex/config.yaml`.
       '';
     };
+
+    enableBashIntegration = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Whether to enable Bash integration (completions).";
+    };
+
+    enableZshIntegration = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Whether to enable Zsh integration (completions).";
+    };
   };
 
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    xdg.configFile."wardex/config.yaml".source = yamlFormat.generate "wardex-config.yaml" cfg.settings;
+    xdg.configFile."wardex/config.yaml" = mkIf (cfg.settings != { }) {
+      source = yamlFormat.generate "wardex-config.yaml" cfg.settings;
+    };
+
+    programs.bash.initExtra = mkIf cfg.enableBashIntegration ''
+      eval "$(${cfg.package}/bin/wardex completions bash)"
+      source <(COMPLETE=bash ${cfg.package}/bin/wardex)
+    '';
+
+    programs.zsh.initExtra = mkIf cfg.enableZshIntegration ''
+      eval "$(${cfg.package}/bin/wardex completions zsh)"
+      source <(COMPLETE=zsh ${cfg.package}/bin/wardex)
+    '';
   };
 }
