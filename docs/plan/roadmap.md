@@ -40,7 +40,7 @@ Goal: make the core event and challenge workflow reliable enough for active comp
 - Common CTF mistakes produce actionable errors and recovery hints.
 - Path-printing commands are safe and predictable for shell use.
 
-## Phase 2: Shell-First Integration (In Progress)
+## Phase 2: Shell-First Integration (Complete)
 
 Goal: make Wardex feel native in the terminal instead of merely callable from it.
 

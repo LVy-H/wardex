@@ -53,13 +53,14 @@ in
       source = yamlFormat.generate "wardex-config.yaml" cfg.settings;
     };
 
+    # Dynamic completions via CompleteEnv — includes both subcommand/flag
+    # completion and runtime value completion (event names, categories).
+    # Supersedes static completions from `wardex completions <shell>`.
     programs.bash.initExtra = mkIf cfg.enableBashIntegration ''
-      eval "$(${cfg.package}/bin/wardex completions bash)"
       source <(COMPLETE=bash ${cfg.package}/bin/wardex)
     '';
 
     programs.zsh.initExtra = mkIf cfg.enableZshIntegration ''
-      eval "$(${cfg.package}/bin/wardex completions zsh)"
       source <(COMPLETE=zsh ${cfg.package}/bin/wardex)
     '';
   };
