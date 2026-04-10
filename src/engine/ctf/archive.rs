@@ -51,7 +51,10 @@ pub fn archive_event(config: &Config, name: &str) -> Result<()> {
         fs::create_dir_all(&archive_year_dir)?;
     }
 
-    let target_dir = archive_year_dir.join(event_dir.file_name().unwrap());
+    let dir_name = event_dir
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("Event directory has no name: {:?}", event_dir))?;
+    let target_dir = archive_year_dir.join(dir_name);
 
     println!("Archiving {:?} -> {:?}", event_dir, target_dir);
 

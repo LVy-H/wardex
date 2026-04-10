@@ -251,20 +251,20 @@ fn archive_challenge(
 ) -> Result<()> {
     if let Some(category_dir) = challenge_dir.parent() {
         if let Some(event_dir) = category_dir.parent() {
+            let event_dir_name = event_dir
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
             let event_meta = CtfMeta::load(event_dir)?.unwrap_or_else(|| {
-                CtfMeta::new(
-                    &event_dir.file_name().unwrap().to_string_lossy(),
-                    None,
-                    None,
-                    None,
-                )
+                CtfMeta::new(&event_dir_name, None, None, None)
             });
 
-            let event_name = event_dir.file_name().unwrap().to_string_lossy();
+            let event_name = &event_dir_name;
             let year = event_meta.year.to_string();
 
             let target_dir = config
-                .ctf_archive_path(&year, &event_name)
+                .ctf_archive_path(&year, event_name)
                 .join(&meta.category)
                 .join(&meta.name);
 
@@ -277,8 +277,12 @@ fn archive_challenge(
             // Try rename first, fallback to copy+delete for cross-device
             if fs::rename(challenge_dir, &target_dir).is_err() {
                 let options = fs_extra::dir::CopyOptions::new();
-                fs_extra::dir::copy(challenge_dir, target_dir.parent().unwrap(), &options)
-                    .context("Failed to archive (cross-device move)")?;
+                fs_extra::dir::copy(
+                    challenge_dir,
+                    target_dir.parent().context("Archive target path has no parent directory")?,
+                    &options,
+                )
+                .context("Failed to archive (cross-device move)")?;
                 fs::remove_dir_all(challenge_dir)?;
             }
 
