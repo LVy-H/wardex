@@ -99,7 +99,11 @@ enum CtfCommands {
         cd: bool,
     },
     /// Generate writeup from notes
-    Writeup,
+    Writeup {
+        /// Redact flags from writeup output
+        #[arg(long)]
+        no_flags: bool,
+    },
     /// Archive an event to 4_Archives
     Archive {
         #[arg(help = "Name of the event to archive", add = ArgValueCompleter::new(ctf::completions::event_completer))]
@@ -463,8 +467,8 @@ fn main() -> Result<()> {
                         println!("{}", shell_quote_cd(&challenge_dir));
                     }
                 }
-                CtfCommands::Writeup => {
-                    ctf::generate_writeup(&config)?;
+                CtfCommands::Writeup { no_flags } => {
+                    ctf::generate_writeup(&config, *no_flags)?;
                 }
                 CtfCommands::Archive { name } => {
                     ctf::archive_event(&config, name)?;

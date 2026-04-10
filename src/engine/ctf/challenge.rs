@@ -310,13 +310,21 @@ pub fn solve_challenge(
     Ok(())
 }
 
-pub fn generate_writeup(_config: &Config) -> Result<()> {
+pub fn generate_writeup(_config: &Config, no_flags: bool) -> Result<()> {
     let event_root = super::get_active_event_root()?;
 
-    let meta = CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
-    let mut writeup_content = format!("# Writeup: {}\n\nDate: {}\n\n", meta.name, meta.date);
+    let event_meta =
+        CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
+    let mut writeup_content =
+        format!("# Writeup: {}\n\nDate: {}\n\n", event_meta.name, event_meta.date);
 
-    // Walk through categories and challenges
+    // Collect challenge data for summary
+    let mut solved_me = 0usize;
+    let mut solved_team = 0usize;
+    let mut unsolved = 0usize;
+    let mut active = 0usize;
+    let mut challenge_sections = String::new();
+
     if let Ok(cats) = fs::read_dir(&event_root) {
         let mut categories: Vec<_> = cats.filter_map(|e| e.ok()).collect();
         categories.sort_by_key(|e| e.file_name());
@@ -333,10 +341,66 @@ pub fn generate_writeup(_config: &Config) -> Result<()> {
                         if chal.path().is_dir() {
                             let chal_name = chal.file_name().to_string_lossy().to_string();
 
-                            // Check for notes
+                            // Load metadata
+                            let cmeta =
+                                ChallengeMetadata::load_or_migrate(&chal.path()).ok().flatten();
+
+                            // Count for summary
+                            if let Some(ref m) = cmeta {
+                                match m.status {
+                                    super::ChallengeStatus::Solved => solved_me += 1,
+                                    super::ChallengeStatus::TeamSolved => solved_team += 1,
+                                    super::ChallengeStatus::Unsolved => unsolved += 1,
+                                    super::ChallengeStatus::Active => active += 1,
+                                }
+                            } else {
+                                active += 1;
+                            }
+
+                            // Status icon
+                            let status_icon = cmeta
+                                .as_ref()
+                                .map(|m| match m.status {
+                                    super::ChallengeStatus::Solved => "✓",
+                                    super::ChallengeStatus::TeamSolved => "✓ (team)",
+                                    super::ChallengeStatus::Unsolved => "✗",
+                                    super::ChallengeStatus::Active => "⌚",
+                                })
+                                .unwrap_or("⌚");
+
+                            challenge_sections.push_str(&format!(
+                                "## [{}] {} {}\n\n",
+                                cat_name, chal_name, status_icon
+                            ));
+
+                            // Metadata fields
+                            if let Some(ref m) = cmeta {
+                                if let Some(ref solver) = m.solved_by {
+                                    challenge_sections
+                                        .push_str(&format!("- **Solved by:** {}\n", solver));
+                                }
+                                if let Some(ref flag) = m.flag {
+                                    if no_flags {
+                                        challenge_sections
+                                            .push_str("- **Flag:** `[redacted]`\n");
+                                    } else {
+                                        challenge_sections
+                                            .push_str(&format!("- **Flag:** `{}`\n", flag));
+                                    }
+                                }
+                                if let Some(ref note) = m.note {
+                                    challenge_sections
+                                        .push_str(&format!("- **Note:** {}\n", note));
+                                }
+                                if let Some(ref shelved) = m.shelved_at {
+                                    challenge_sections
+                                        .push_str(&format!("- **Shelved:** {}\n", shelved));
+                                }
+                            }
+
+                            // Notes content
                             let notes_path = chal.path().join("notes.md");
                             let readme_path = chal.path().join("README.md");
-
                             let content = if notes_path.exists() {
                                 fs::read_to_string(notes_path).unwrap_or_default()
                             } else if readme_path.exists() {
@@ -346,17 +410,33 @@ pub fn generate_writeup(_config: &Config) -> Result<()> {
                             };
 
                             if !content.trim().is_empty() {
-                                writeup_content
-                                    .push_str(&format!("## [{}] {}\n\n", cat_name, chal_name));
-                                writeup_content.push_str(&content);
-                                writeup_content.push_str("\n\n---\n\n");
+                                challenge_sections.push_str("\n### Notes\n\n");
+                                challenge_sections.push_str(&content);
                             }
+
+                            challenge_sections.push_str("\n\n---\n\n");
                         }
                     }
                 }
             }
         }
     }
+
+    // Summary section
+    let total = solved_me + solved_team + unsolved + active;
+    writeup_content.push_str("## Summary\n\n");
+    writeup_content.push_str(&format!("- **Total:** {} challenges\n", total));
+    writeup_content.push_str(&format!(
+        "- **Solved:** {} (me), {} (team) — {} total\n",
+        solved_me,
+        solved_team,
+        solved_me + solved_team
+    ));
+    writeup_content.push_str(&format!("- **Unsolved:** {}\n", unsolved));
+    writeup_content.push_str(&format!("- **Active:** {}\n\n", active));
+
+    // Challenge sections
+    writeup_content.push_str(&challenge_sections);
 
     let writeup_path = event_root.join("Writeup.md");
     fs::write(&writeup_path, writeup_content)?;

@@ -1243,6 +1243,56 @@ fn test_ctf_writeup_generates_output() {
 
 #[test]
 #[serial_test::serial]
+fn test_ctf_writeup_redacts_flags() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "RedactCTF"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "add", "web/redact-test"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("RedactCTF"))
+        .unwrap()
+        .path();
+
+    let meta_path = event_dir.join("web/redact-test/.challenge.json");
+    let meta_content = r#"{"schema_version":1,"name":"redact-test","category":"web","status":"solved","flag":"flag{secret}","solved_by":"me","note":null,"imported_from":null,"shelved_at":null,"created_at":"2026-04-10T12:00:00"}"#;
+    fs::write(&meta_path, meta_content).unwrap();
+    fs::write(
+        event_dir.join("web/redact-test/notes.md"),
+        "Found the bug.",
+    )
+    .unwrap();
+
+    env.cmd()
+        .args(["ctf", "writeup", "--no-flags"])
+        .assert()
+        .success();
+
+    let content = fs::read_to_string(event_dir.join("Writeup.md")).unwrap();
+    assert!(content.contains("[redacted]"), "Flag should be redacted");
+    assert!(
+        !content.contains("flag{secret}"),
+        "Actual flag should not appear"
+    );
+    assert!(
+        content.contains("redact-test"),
+        "Challenge name should appear"
+    );
+}
+
+#[test]
+#[serial_test::serial]
 fn test_ctf_archive_moves_event() {
     let env = TestEnv::new();
     env.setup_workspace();
