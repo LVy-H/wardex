@@ -112,7 +112,7 @@ pub fn event_completer(current: &OsStr) -> Vec<CompletionCandidate> {
             if name.starts_with('.') {
                 return None;
             }
-            if prefix.is_empty() || name.to_lowercase().contains(&prefix.to_lowercase()) {
+            if prefix.is_empty() || name.to_lowercase().starts_with(&prefix.to_lowercase()) {
                 Some(CompletionCandidate::new(name))
             } else {
                 None
@@ -170,6 +170,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial]
     fn event_completer_returns_empty_when_no_root() {
         // With no CTF root on disk, should return empty
         std::env::set_var("WX_PATHS_CTF_ROOT", "/nonexistent/path/for/testing");
@@ -182,6 +183,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn category_completer_returns_defaults_when_no_event() {
         std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
         let results = category_completer(OsStr::new(""));
@@ -190,6 +192,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn category_completer_filters_by_prefix() {
         std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
         let results = category_completer(OsStr::new("pw"));
