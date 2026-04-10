@@ -1430,6 +1430,30 @@ fn test_config_validate_command() {
 }
 
 #[test]
+#[serial_test::serial]
+fn test_ctf_status_shows_summary() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "SummaryEvent"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "add", "web/sum-test"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(["ctf", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("total"))
+        .stdout(predicate::str::contains("active"));
+}
+
+#[test]
 fn test_config_validate_warns_missing_workspace() {
     let env = TestEnv::new();
     let nonexistent = format!("{}/nonexistent_workspace", env.path().display());

@@ -373,9 +373,13 @@ struct ChallengeStatusRow {
     challenge: String,
     #[tabled(rename = "Status")]
     status: String,
+    #[tabled(rename = "Solver")]
+    solved_by: String,
+    #[tabled(rename = "Note")]
+    note: String,
 }
 
-pub fn challenge_status(config: &Config) -> Result<()> {
+pub fn challenge_status(config: &Config, format: &str) -> Result<()> {
     let event_root = super::get_active_event_root()?;
     let meta = CtfMeta::load(&event_root)?
         .ok_or_else(|| anyhow::anyhow!("No CTF metadata found (.ctf_meta.json)"))?;
@@ -388,7 +392,7 @@ pub fn challenge_status(config: &Config) -> Result<()> {
 
     let mut statuses = Vec::new();
 
-    // 1. Scan Active Event Dir for Unsolved
+    // 1. Scan Active Event Dir
     if let Ok(cats) = fs::read_dir(&event_root) {
         for cat in cats.flatten() {
             if cat.path().is_dir() && !cat.file_name().to_string_lossy().starts_with('.') {
@@ -396,24 +400,46 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                 if let Ok(chals) = fs::read_dir(cat.path()) {
                     for chal in chals.flatten() {
                         if chal.path().is_dir() {
-                            let display_status = if let Ok(Some(meta)) =
-                                ChallengeMetadata::load_or_migrate(&chal.path())
-                            {
-                                match meta.status {
-                                    super::ChallengeStatus::Solved => "✓ Solved".to_string(),
-                                    super::ChallengeStatus::TeamSolved => {
-                                        "✓ Team-Solved".to_string()
-                                    }
-                                    super::ChallengeStatus::Unsolved => "✗ Unsolved".to_string(),
-                                    super::ChallengeStatus::Active => "⌚ Active".to_string(),
-                                }
-                            } else {
-                                "⌚ Active".to_string()
-                            };
+                            let (display_status, solver, note_preview) =
+                                if let Ok(Some(cmeta)) =
+                                    ChallengeMetadata::load_or_migrate(&chal.path())
+                                {
+                                    let status_str = match cmeta.status {
+                                        super::ChallengeStatus::Solved => "✓ Solved".to_string(),
+                                        super::ChallengeStatus::TeamSolved => {
+                                            "✓ Team".to_string()
+                                        }
+                                        super::ChallengeStatus::Unsolved => {
+                                            "✗ Unsolved".to_string()
+                                        }
+                                        super::ChallengeStatus::Active => "⌚ Active".to_string(),
+                                    };
+                                    let solver =
+                                        cmeta.solved_by.unwrap_or_else(|| "-".to_string());
+                                    let note = cmeta
+                                        .note
+                                        .map(|n| {
+                                            if n.len() > 30 {
+                                                format!("{}...", &n[..27])
+                                            } else {
+                                                n
+                                            }
+                                        })
+                                        .unwrap_or_else(|| "-".to_string());
+                                    (status_str, solver, note)
+                                } else {
+                                    (
+                                        "⌚ Active".to_string(),
+                                        "-".to_string(),
+                                        "-".to_string(),
+                                    )
+                                };
                             statuses.push(ChallengeStatusRow {
                                 category: cat_name.clone(),
                                 challenge: chal.file_name().to_string_lossy().to_string(),
                                 status: display_status,
+                                solved_by: solver,
+                                note: note_preview,
                             });
                         }
                     }
@@ -435,6 +461,8 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                                     category: cat_name.clone(),
                                     challenge: chal.file_name().to_string_lossy().to_string(),
                                     status: "✓ Solved".to_string(),
+                                    solved_by: "-".to_string(),
+                                    note: "-".to_string(),
                                 });
                             }
                         }
@@ -457,12 +485,58 @@ pub fn challenge_status(config: &Config) -> Result<()> {
             .then_with(|| a.challenge.cmp(&b.challenge))
     });
 
+    // JSON output
+    if format == "json" {
+        #[derive(serde::Serialize)]
+        struct JsonRow {
+            category: String,
+            challenge: String,
+            status: String,
+            solved_by: String,
+            note: String,
+        }
+        let json_rows: Vec<JsonRow> = statuses
+            .iter()
+            .map(|s| JsonRow {
+                category: s.category.clone(),
+                challenge: s.challenge.clone(),
+                status: s.status.clone(),
+                solved_by: s.solved_by.clone(),
+                note: s.note.clone(),
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&json_rows)?);
+        return Ok(());
+    }
+
     use tabled::{settings::Style, Table};
-    let mut table = Table::new(statuses);
+    let mut table = Table::new(&statuses);
     table.with(Style::modern());
 
     println!("Status for CTF Event: {}", meta.name);
     println!("{}", table);
+
+    // Summary
+    let total = statuses.len();
+    let solved_total = statuses.iter().filter(|s| s.status.contains('✓')).count();
+    let solved_me = statuses
+        .iter()
+        .filter(|s| s.status.contains("Solved") && s.solved_by == "me")
+        .count();
+    let solved_team = statuses.iter().filter(|s| s.status.contains("Team")).count();
+    let unsolved = statuses
+        .iter()
+        .filter(|s| s.status.contains("Unsolved"))
+        .count();
+    let active = statuses
+        .iter()
+        .filter(|s| s.status.contains("Active"))
+        .count();
+
+    println!(
+        "\n{} total | ✓ {} solved (me: {}, team: {}) | ✗ {} unsolved | ⌚ {} active",
+        total, solved_total, solved_me, solved_team, unsolved, active
+    );
 
     Ok(())
 }

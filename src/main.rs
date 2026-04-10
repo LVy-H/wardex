@@ -144,7 +144,11 @@ enum CtfCommands {
     /// Check for expired or soon-to-expire events
     Check,
     /// Detailed status of challenges (Active vs Solved)
-    Status,
+    Status {
+        /// Output format: table (default) or json
+        #[arg(long, default_value = "table")]
+        format: String,
+    },
     /// Shelve a challenge — interactive cleanup, flag, notes, and archive
     Shelve {
         /// Flag value (skips status and flag prompts if provided)
@@ -508,8 +512,8 @@ fn main() -> Result<()> {
                 CtfCommands::Check => {
                     ctf::check_expiries(&config)?;
                 }
-                CtfCommands::Status => {
-                    ctf::challenge_status(&config)?;
+                CtfCommands::Status { format } => {
+                    ctf::challenge_status(&config, format)?;
                 }
                 CtfCommands::Shelve {
                     flag,
