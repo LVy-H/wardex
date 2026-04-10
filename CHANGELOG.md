@@ -57,6 +57,51 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.2.0-alpha8] - 2026-04-10
+
+### Summary
+
+Ships **dynamic shell completions** for event names and categories via `clap_complete`'s
+runtime completion engine. Hardens context resolution with edge-case tests, fixes a bug
+where `ctf info` silently succeeded after event deletion, and adds shell output contract tests.
+
+### Added
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Dynamic completions | Event name TAB-completion for `ctf use`, `path`, `archive`, `schedule`, `finish` | Experimental |
+| Category completions | Category TAB-completion for `ctf add` (falls back to defaults) | Experimental |
+| `CompleteEnv` integration | `source <(COMPLETE=bash wardex)` activates dynamic completions | Experimental |
+| Context edge-case tests | Tests for deleted events, spaces in names, bare output format | - |
+| Shell output contract tests | Verify `--cd` format and bare path output | - |
+
+### Fixed
+
+| Fix | Description |
+|-----|-------------|
+| `ctf info` after event deletion | Now returns error instead of silently succeeding |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| `clap_complete` feature | Static only | `unstable-dynamic` enabled for runtime completions |
+
+### Migration Guide
+
+#### From 0.2.0-alpha7
+
+**No breaking changes.** Static completions (`wardex completions bash/zsh`) continue to work.
+
+To enable dynamic completions (optional):
+```bash
+# Bash — add to ~/.bashrc
+source <(COMPLETE=bash wardex)
+
+# Zsh — add to ~/.zshrc
+source <(COMPLETE=zsh wardex)
+```
+
 ## [0.2.0-alpha7] - 2026-04-10
 
 ### Summary
