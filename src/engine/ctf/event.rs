@@ -243,16 +243,7 @@ pub fn set_active_event(config: &Config, name: &str) -> Result<()> {
 
 /// Get info about current CTF context
 pub fn get_context_info(_config: &Config) -> Result<()> {
-    let root = match get_active_event_root() {
-        Ok(r) => r,
-        Err(_) => {
-            println!("No active CTF event context detected.");
-            println!(
-                "Run this command inside a CTF event directory or use 'wardex ctf use <event>'."
-            );
-            return Ok(());
-        }
-    };
+    let root = get_active_event_root()?;
 
     let meta = CtfMeta::load(&root)?.ok_or_else(|| anyhow::anyhow!("No metadata found"))?;
 

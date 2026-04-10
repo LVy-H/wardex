@@ -1242,3 +1242,75 @@ fn test_ctf_solve_legacy_writes_flag() {
     let flag_content = fs::read_to_string(challenge_dir.join("flag.txt")).unwrap();
     assert_eq!(flag_content, "flag{legacy_test}");
 }
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_info_after_event_deleted() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(["ctf", "init", "DeletedEvent"]).assert().success();
+
+    // Find and delete the event directory
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("DeletedEvent"))
+        .unwrap()
+        .path();
+    fs::remove_dir_all(&event_dir).unwrap();
+
+    // Info should fail gracefully, not panic
+    env.cmd()
+        .args(["ctf", "info"])
+        .assert()
+        .failure();
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_path_with_spaces() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(["ctf", "init", "My Event 2026"]).assert().success();
+
+    env.cmd()
+        .args(["ctf", "path", "My Event"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("My Event 2026"));
+
+    // --cd should produce valid shell output with quoted spaces
+    env.cmd()
+        .args(["ctf", "path", "My Event", "--cd"])
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("cd '"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_path_bare_output_no_decoration() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(["ctf", "init", "BarePathTest"]).assert().success();
+
+    let output = env.cmd()
+        .args(["ctf", "path", "BarePathTest"])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Bare path: no "cd", no quotes, no ANSI codes, just the path + newline
+    assert!(!stdout.contains("cd "), "Bare path should not contain 'cd'");
+    assert!(!stdout.contains('\x1b'), "Bare path should not contain ANSI escape codes");
+    let trimmed = stdout.trim();
+    assert!(!trimmed.is_empty(), "Path output should not be empty");
+    assert!(trimmed.contains("BarePathTest"), "Path should contain event name");
+}
