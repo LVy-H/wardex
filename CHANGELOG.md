@@ -57,6 +57,45 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.3.0-alpha1] - 2026-04-10
+
+### Summary
+
+First 0.3.x release: CTF workflow polish. Metadata-driven writeups with flag redaction,
+config validation, enriched status table with JSON output, challenge path completions,
+and multi-event context switching (`ctf use -`, `ctf recent`).
+
+### Added
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Challenge path completer | TAB-complete `category/challenge` in `ctf path` | Stable |
+| Config validation | `wardex config validate` checks paths, categories, regex | Stable |
+| `ctf recent` | List last 5 recently used events | Stable |
+| `ctf use -` | Switch back to previous event (like `cd -`) | Stable |
+| Status summary line | Total/solved/unsolved/active counts after status table | Stable |
+| Status JSON output | `wardex ctf status --format json` | Stable |
+| Status solver/note columns | Shows who solved and notes preview in status table | Stable |
+| Writeup metadata | Status icons, solver, flag, notes, timestamps in writeups | Stable |
+| Writeup summary | Solve counts at top of generated writeup | Stable |
+| Writeup flag redaction | `wardex ctf writeup --no-flags` hides flags | Stable |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| `ctf status` signature | No args | `--format table\|json` |
+| `ctf writeup` signature | No args | `--no-flags` optional |
+| `generate_writeup()` | Ignores metadata | Reads .challenge.json for each challenge |
+| `challenge_status()` | 3-column table | 5-column table with summary line |
+| `AppState` | Single event | Tracks previous + recent 5 events |
+
+### Migration Guide
+
+#### From 0.2.0-beta1
+
+**No breaking changes.** All new features are additive. Existing state.json files auto-upgrade via `#[serde(default)]`.
+
 ## [0.2.0-beta1] - 2026-04-10
 
 ### Summary
