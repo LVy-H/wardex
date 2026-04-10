@@ -57,6 +57,42 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.2.0-alpha7] - 2026-04-10
+
+### Summary
+
+Safety and correctness release: fixes panic risks, shell quoting, marks non-CTF
+commands as experimental, and expands test coverage.
+
+### Fixed
+
+| Fix | Description |
+|-----|-------------|
+| Panic on non-UTF-8 paths | `.unwrap()` calls in challenge.rs, shelve.rs, archive.rs replaced with proper error handling |
+| Shell quoting in `--cd` output | Paths with single quotes no longer break `eval $(wardex ctf ...)` |
+| Panic in stats.rs | `Arc::try_unwrap` chain replaced with error propagation |
+| Clippy warnings | Removed needless borrows in test code, removed unused import |
+
+### Changed
+
+| Change | Before | After |
+|--------|--------|-------|
+| Non-CTF commands | No label | `[experimental]` prefix in help text |
+
+### Added
+
+| Feature | Description |
+|---------|-------------|
+| New tests | Integration tests for `ctf use`, `ctf info`, `ctf writeup`, `ctf archive`, `ctf solve` |
+| Shell quoting test | Tests that paths with special characters produce valid shell output |
+| Experimental labels test | Verifies non-CTF commands show `[experimental]` in help |
+
+### Migration Guide
+
+#### From 0.2.0-alpha6
+
+**No breaking changes.** Non-CTF commands now show `[experimental]` in help text but behavior is unchanged.
+
 ## [0.2.0-alpha6] - 2026-04-09
 
 ### Summary
