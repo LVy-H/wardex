@@ -209,14 +209,14 @@ fn parse_fuzzy_time(time_str: &str) -> Option<i64> {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize a new project
+    /// [experimental] Initialize a new project
     Init {
         #[arg(short, long, help = "Project type (rust, python, node)")]
         type_: String,
         #[arg(short, long, help = "Project name")]
         name: String,
     },
-    /// Sort items from Inbox into Projects/Resources
+    /// [experimental] Sort items from Inbox into Projects/Resources
     Clean {
         #[arg(long, help = "Simulate moves without executing")]
         dry_run: bool,
@@ -226,33 +226,33 @@ enum Commands {
         #[command(subcommand)]
         command: CtfCommands,
     },
-    /// Audit workspace health (files, empty folders)
+    /// [experimental] Audit workspace health (files, empty folders)
     Audit,
-    /// Undo last movement operation
+    /// [experimental] Undo last movement operation
     Undo {
         #[arg(short, long, default_value_t = 1)]
         count: usize,
     },
-    /// Watch Inbox and auto-sort
+    /// [experimental] Watch Inbox and auto-sort
     Watch,
-    /// Show git status dashboard
+    /// [experimental] Show git status dashboard
     Status,
-    /// Search for flags recursively
+    /// [experimental] Search for flags recursively
     Search {
         #[arg(default_value = ".")]
         path: PathBuf,
         #[arg(short, long)]
         pattern: Option<String>,
     },
-    /// Fuzzy find projects
+    /// [experimental] Fuzzy find projects
     Find { name: String },
-    /// Grep Content in Projects/Resources
+    /// [experimental] Grep content in Projects/Resources
     Grep { pattern: String },
-    /// Show workspace analytics
+    /// [experimental] Show workspace analytics
     Stats,
-    /// Launch interactive TUI dashboard
+    /// [experimental] Launch interactive TUI dashboard
     Dashboard,
-    /// Quick file/project info
+    /// [experimental] Quick file/project info
     Info { path: Option<PathBuf> },
     /// Manage configuration
     Config {

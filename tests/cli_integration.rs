@@ -1070,3 +1070,26 @@ fn test_ctf_add_cd_escapes_single_quotes() {
         .success()
         .stdout(predicate::str::contains("bob'\\''s-chall"));
 }
+
+#[test]
+fn test_experimental_labels_in_help() {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let output = cmd.args(&["--help"]).output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Non-CTF commands should have [experimental] on their line
+    for cmd_name in ["clean", "watch", "audit", "search", "find", "grep", "stats", "undo"] {
+        let has_experimental = stdout.lines().any(|l| {
+            l.to_lowercase().contains(cmd_name) && l.contains("[experimental]")
+        });
+        assert!(has_experimental, "Command '{}' should be marked as [experimental] in help", cmd_name);
+    }
+
+    // CTF, config, completions should NOT be experimental
+    for cmd_name in ["ctf", "config", "completions"] {
+        let is_experimental = stdout.lines().any(|l| {
+            l.to_lowercase().contains(cmd_name) && l.contains("[experimental]")
+        });
+        assert!(!is_experimental, "Command '{}' should NOT be marked [experimental]", cmd_name);
+    }
+}
