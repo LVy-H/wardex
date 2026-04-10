@@ -296,6 +296,13 @@ fn find_config(cli_path: &Option<PathBuf>) -> Result<PathBuf> {
     );
 }
 
+/// Escape a path for safe use in `cd '<path>'` shell evaluation.
+/// Replaces `'` with `'\''` (end quote, escaped quote, start quote).
+fn shell_quote_cd(path: &std::path::Path) -> String {
+    let s = path.display().to_string();
+    format!("cd '{}'", s.replace('\'', "'\\''"))
+}
+
 fn main() -> Result<()> {
     // Initialize logger with colored output
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
@@ -414,7 +421,7 @@ fn main() -> Result<()> {
             CtfCommands::Add { path, cd } => {
                 let challenge_dir = ctf::add_challenge(&config, path)?;
                 if *cd {
-                    println!("cd '{}'", challenge_dir.display());
+                    println!("{}", shell_quote_cd(&challenge_dir));
                 }
             }
             CtfCommands::Writeup => {
@@ -434,7 +441,7 @@ fn main() -> Result<()> {
 
                 let path = ctf::get_event_path(&config, event.as_deref(), challenge.as_deref())?;
                 if *cd {
-                    println!("cd '{}'", path.display());
+                    println!("{}", shell_quote_cd(&path));
                 } else {
                     println!("{}", path.display());
                 }
@@ -473,7 +480,7 @@ fn main() -> Result<()> {
             }
             CtfCommands::Work { path } => {
                 let challenge_dir = ctf::add_challenge(&config, path)?;
-                println!("cd '{}'", challenge_dir.display());
+                println!("{}", shell_quote_cd(&challenge_dir));
             }
             CtfCommands::Done { flag, create, desc, no_archive, no_commit } => {
                 ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;

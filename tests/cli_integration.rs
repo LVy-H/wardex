@@ -1050,3 +1050,23 @@ fn test_completions_visible_in_help() {
 
     assert!(stdout.contains("completions"), "completions should be visible in help");
 }
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_add_cd_escapes_single_quotes() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(&["ctf", "init", "QuoteTest"])
+        .assert()
+        .success();
+
+    // Challenge name with a single quote
+    env.cmd()
+        .args(&["ctf", "add", "web/bob's-chall", "--cd"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("bob'\\''s-chall"));
+}
