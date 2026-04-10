@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::engine::ArgValueCompleter;
 use clap_complete::Shell;
 use log::{error, info, warn};
 use std::path::PathBuf;
@@ -90,7 +91,7 @@ enum CtfCommands {
     },
     /// Add a new challenge to current event (--cd to navigate)
     Add {
-        #[arg(help = "Category/Name (e.g. pwn/stack-buffer)")]
+        #[arg(help = "Category/Name (e.g. pwn/stack-buffer)", add = ArgValueCompleter::new(ctf::completions::category_completer))]
         path: String,
         #[arg(long, help = "Output cd command for shell eval after creation")]
         cd: bool,
@@ -99,12 +100,12 @@ enum CtfCommands {
     Writeup,
     /// Archive an event to 4_Archives
     Archive {
-        #[arg(help = "Name of the event to archive")]
+        #[arg(help = "Name of the event to archive", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         name: String,
     },
     /// Print path to CTF event or challenge (for shell integration)
     Path {
-        #[arg(help = "Event name (optional, defaults to current context or latest)")]
+        #[arg(help = "Event name (optional, defaults to current context or latest)", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         event: Option<String>,
         #[arg(help = "Challenge name (optional)")]
         challenge: Option<String>,
@@ -115,12 +116,12 @@ enum CtfCommands {
     Info,
     /// Set the current active event context globally
     Use {
-        #[arg(help = "Event name/path to activate")]
+        #[arg(help = "Event name/path to activate", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         event: String,
     },
     /// Schedule or reschedule an event (add start/end times)
     Schedule {
-        #[arg(help = "Event name (optional, uses active context otherwise)")]
+        #[arg(help = "Event name (optional, uses active context otherwise)", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         event: Option<String>,
         #[arg(long, help = "Start time (e.g. '2025-01-01 10:00')")]
         start: Option<String>,
@@ -129,7 +130,7 @@ enum CtfCommands {
     },
     /// Clean up, commit, compress, and optionally archive an event
     Finish {
-        #[arg(help = "Event name (optional, uses active context otherwise)")]
+        #[arg(help = "Event name (optional, uses active context otherwise)", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         event: Option<String>,
         #[arg(long, help = "Skip final archive step, just cleanup and commit")]
         no_archive: bool,
@@ -304,6 +305,10 @@ fn shell_quote_cd(path: &std::path::Path) -> String {
 }
 
 fn main() -> Result<()> {
+    // Dynamic completions: when COMPLETE env var is set, generate completions and exit.
+    // This must run before any other initialization (logger, CLI parsing, etc.).
+    clap_complete::CompleteEnv::with_factory(Cli::command).complete();
+
     // Initialize logger with colored output
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(None)

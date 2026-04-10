@@ -14,6 +14,7 @@
 
 mod archive;
 mod challenge;
+pub mod completions;
 mod event;
 mod import;
 mod resolve;
