@@ -4,9 +4,11 @@
 
 ## Features
 
+- 🚩 **CTF Management** - Full event lifecycle: init, add, import, shelve, finish
+- 📦 **Interactive Shelve** - Guided challenge completion with file triage, flags, and notes
+- 🐚 **Shell Completions** - Bash/Zsh tab completion for commands and flags
 - 📥 **Inbox Sorting** - Auto-organize files using regex rules
 - 🔍 **Flag Search** - Hunt CTF flags in files and archives (respects `.gitignore`)
-- 🚩 **CTF Management** - Create and manage competition events
 - 📊 **Git Dashboard** - Status of all repos at a glance (parallelized)
 - ↩️ **Undo Support** - Safely revert file moves
 - 👁️ **Watch Mode** - Real-time inbox monitoring
@@ -44,19 +46,24 @@ wardex config goto inbox  # Print path (for shell integration)
 wardex watch
 
 # CTF event management
-wardex ctf init Defcon2025 # Defaults to today's date (auto-activates event)
+wardex ctf init Defcon2025   # Create event (auto-activates)
 wardex ctf list
-wardex ctf use Defcon2025    # Switch active event context manually
+wardex ctf use Defcon2025    # Switch active event context
 wardex ctf info              # Show current event context
 wardex ctf import file.zip   # Smart import (moves file, auto-detects category)
-wardex ctf add web/chall1    # Manually add challenge (infers category if in subfolder)
+wardex ctf add web/chall1    # Create challenge
 wardex ctf path              # Print path to current event
 wardex ctf path --cd         # Output as 'cd <path>' for eval
 
-# Quick workflow shortcuts
-eval $(wardex ctf work pwn/heap-overflow)  # Create challenge + cd into it
-wardex ctf done "flag{found}" --no-archive # Solve without archiving
-wardex ctf solve "flag{found}" --no-commit # Solve without git commit
+# Shell navigation shortcuts
+eval $(wardex ctf add pwn/heap-overflow --cd)  # Create challenge + cd into it
+
+# Challenge completion (shelve system)
+wardex ctf shelve                        # Interactive: status, flag, file triage, notes
+wardex ctf shelve "flag{found_it}"       # Quick solve with flag
+wardex ctf shelve --auto                 # Smart defaults, no prompts
+wardex ctf shelve --no-clean --no-move   # Skip file triage and archival
+wardex ctf status                        # Challenge progress table
 
 # Search for flags
 wardex search /path/to/ctf
@@ -64,6 +71,10 @@ wardex search /path/to/ctf
 # Workspace health check
 wardex status
 wardex audit
+
+# Shell completions
+wardex completions bash > ~/.local/share/bash-completion/completions/wardex
+wardex completions zsh > ~/.zfunc/_wardex
 
 # Undo last moves
 wardex undo -c 3
@@ -159,6 +170,15 @@ ctf:
     - crypto
     - rev
     - misc
+  shelve:
+    blacklist:
+      - node_modules
+      - .venv
+      - __pycache__
+    whitelist:
+      - solve.*
+      - notes.md
+      - Dockerfile
 ```
 
 ### Environment Variables
@@ -200,12 +220,13 @@ If no configuration is provided, Wardex uses these defaults:
 
 ## Documentation
 
-- [`docs/ARCHITECTURE.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/ARCHITECTURE.md) for the current code layout
-- [`docs/CLI_DESIGN.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/CLI_DESIGN.md) for command and shell UX rules
-- [`docs/ctf-lifecycle.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/ctf-lifecycle.md) for the draft CTF command flow and naming guidance
-- [`docs/PREVIEW.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/PREVIEW.md) for product direction and feature framing
-- [`docs/rfcs/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/rfcs/README.md) for the RFC process
-- [`docs/plan/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/README.md) for the staged development and upgrade plan
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — code layout and data flows
+- [`docs/CLI_DESIGN.md`](docs/CLI_DESIGN.md) — command and shell UX rules
+- [`docs/ctf-lifecycle.md`](docs/ctf-lifecycle.md) — CTF workflow and shelve system design
+- [`docs/shell-output-contracts.md`](docs/shell-output-contracts.md) — shell integration output specs
+- [`docs/PREVIEW.md`](docs/PREVIEW.md) — product direction and future features
+- [`docs/rfcs/`](docs/rfcs/README.md) — RFC process and accepted proposals
+- [`docs/plan/`](docs/plan/README.md) — staged development plan and task backlog
 
 ## License
 

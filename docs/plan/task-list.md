@@ -31,137 +31,61 @@ Decisions made:
 - core six commands: `init`, `use`, `add`, `import`, `shelve`, `finish`
 - `solve`, `done`, `work` become hidden aliases
 
-### T002: Write RFC 0002 For Shell Completion Architecture
+### T002: Write RFC 0002 For Shell Completion Architecture (DONE)
 
 Goal: choose the completion approach before implementation diverges.
 
-Deliverables:
+Status: Completed. RFC 0002 accepted in `docs/rfcs/0002-shell-completions.md`. Decided on `clap_complete` for static completions via `wardex completions <shell>`, dynamic completions deferred.
 
-- define whether completion is Clap-generated, custom, or hybrid
-- define whether Wardex needs `wardex completions <shell>`
-- define how dynamic completion will source events, categories, and challenges
-- define Bash and Zsh support expectations
-
-Definition of done:
-
-- RFC accepted or ready for acceptance
-- completion architecture is clear enough to implement without rework
-
-### T003: Stabilize Shell-Oriented Output Contracts
+### T003: Stabilize Shell-Oriented Output Contracts (DONE)
 
 Goal: make shell-facing commands safe to wrap and evaluate.
 
-Deliverables:
-
-- specify output contracts for `ctf path`, `ctf path --cd`, `ctf add --cd`, and `ctf use`
-- review whether any commands need a quieter or machine-oriented mode
-- document what output must remain stable across versions
-
-Definition of done:
-
-- shell-facing commands have explicit output rules
-- risky output ambiguity is removed from the backlog of unknowns
+Status: Completed in `docs/shell-output-contracts.md`. Documented stable vs unstable output for shell-facing commands.
 
 ## Milestone 1: Shelve System Implementation
 
-### T004: Implement Challenge Metadata Schema
+### T004: Implement Challenge Metadata Schema (DONE)
 
 Goal: replace `flag.txt` with structured per-challenge metadata.
 
-Deliverables:
+Status: Completed in 0.2.0-alpha4. `ChallengeMetadata` struct with `.challenge.json`, schema versioning, and `flag.txt` migration implemented.
 
-- define and implement `ChallengeMetadata` struct (`name`, `category`, `status`, `flag`, `solved_by`, `note`, `imported_from`, `shelved_at`, `created_at`)
-- `.challenge.json` read/write alongside existing `.ctf_meta.json`
-- status values: `active`, `solved`, `team-solved`, `unsolved`
-- migration: read `flag.txt` if `.challenge.json` is absent (backwards compat)
-- `ctf add` creates `.challenge.json` with `active` status
-
-Depends on:
-
-- T001
-
-### T005: Implement `ctf shelve` Interactive Flow
+### T005: Implement `ctf shelve` Interactive Flow (DONE)
 
 Goal: build the signature shelve command with interactive-first design.
 
-Deliverables:
+Status: Completed in 0.2.0-alpha5. Full interactive flow with status, flag, file triage, note, and archive prompts. All flags (`--no-clean`, `--note`, `--move`/`--no-move`, `--auto`, `--no-commit`) implemented.
 
-- status prompt (Select: solved / team-solved / unsolved)
-- flag input (Input, conditional on status)
-- file triage (MultiSelect with blacklist/whitelist pre-sorting and sizes)
-- note prompt (Input, optional)
-- archive prompt (Confirm: move to archives?)
-- each step skippable with flags (`--no-clean`, `--note`, `--move`/`--no-move`, `--auto`)
-- update `.challenge.json` with solve state
-- `solve` and `done` as hidden aliases
-
-Depends on:
-
-- T004
-
-### T006: Add `--cd` Flag To `ctf add`
+### T006: Add `--cd` Flag To `ctf add` (DONE)
 
 Goal: make the primary creation verb also serve shell navigation.
 
-Deliverables:
+Status: Completed in 0.2.0-alpha4. `ctf add --cd` prints `cd '<path>'` for eval. `work` is a hidden alias.
 
-- `--cd` flag on `ctf add` that outputs `cd '<path>'` after creation
-- `work` as hidden alias for `add --cd`
-- update help text to document `add` as the primary verb
-
-Depends on:
-
-- T001
-
-### T007: Implement File Triage System
+### T007: Implement File Triage System (DONE)
 
 Goal: smart file cleanup during shelve with configurable patterns.
 
-Deliverables:
-
-- default blacklist patterns: `node_modules/`, `.venv/`, `venv/`, `core.*`, `*.o`, `.gdb_history`, `peda-*`, `__pycache__/` (when not from challenge)
-- default whitelist patterns: `solve.*`, `exploit.*`, `notes.md`, `Dockerfile`, `docker-compose.yml`, imported originals (from `.challenge.json` `imported_from`)
-- `config.yaml` keys for custom blacklist and whitelist
-- file size display in triage prompt
-- invert mode: select-to-keep instead of select-to-delete
-
-Depends on:
-
-- T005
+Status: Completed across 0.2.0-alpha5 (hardcoded patterns) and 0.2.0-alpha6 (configurable `ctf.shelve.blacklist`/`whitelist` in config.yaml).
 
 ## Milestone 2: Shell Completion
 
-### T008: Write RFC 0002 For Shell Completion Architecture
+### T008: Write RFC 0002 For Shell Completion Architecture (DONE)
 
-Same as T002. Moved here for ordering clarity.
+Same as T002. See above.
 
-### T009: Add A Completion Entry Point
+### T009: Add A Completion Entry Point (DONE)
 
 Goal: give users a standard way to install completions.
 
-Deliverables:
+Status: Completed in 0.2.0-alpha6. `wardex completions <bash|zsh>` generates completion scripts. Install docs in CHANGELOG and RFC 0002.
 
-- add a completion command or equivalent supported install path
-- support Bash and Zsh first
-- document the install flow in project docs
-
-Depends on:
-
-- T002
-
-### T010: Implement Static Completion For Commands And Flags
+### T010: Implement Static Completion For Commands And Flags (DONE)
 
 Goal: complete the command tree and common options.
 
-Deliverables:
-
-- subcommand completion (including `shelve` and hidden aliases)
-- flag completion
-- shell install examples for Bash and Zsh
-
-Depends on:
-
-- T009
+Status: Completed in 0.2.0-alpha6. Uses `clap_complete` for subcommand and flag completion. Bash and Zsh supported.
 
 ### T011: Implement Dynamic Completion For Events And Categories
 
@@ -175,8 +99,7 @@ Deliverables:
 
 Depends on:
 
-- T002
-- T009
+- T009 (DONE)
 
 ## Milestone 3: Context And Navigation Hardening
 
@@ -309,13 +232,24 @@ Depends on:
 - T017
 - T018
 
-## Suggested First Sprint
+## Completed First Sprint
 
-Shortest route to visible user value:
+All items shipped across 0.2.0-alpha4 through alpha6:
 
-1. T004 Implement challenge metadata schema
-2. T006 Add `--cd` flag to `ctf add`
-3. T005 Implement `ctf shelve` interactive flow
-4. T007 Implement file triage system
-5. T002 Write RFC 0002 for shell completion architecture
-6. T003 Stabilize shell-oriented output contracts
+1. ~~T004 Implement challenge metadata schema~~ (alpha4)
+2. ~~T006 Add `--cd` flag to `ctf add`~~ (alpha4)
+3. ~~T005 Implement `ctf shelve` interactive flow~~ (alpha5)
+4. ~~T007 Implement file triage system~~ (alpha5 + alpha6)
+5. ~~T002 Write RFC 0002 for shell completion architecture~~ (alpha6)
+6. ~~T003 Stabilize shell-oriented output contracts~~ (alpha6)
+7. ~~T009 Add a completion entry point~~ (alpha6)
+8. ~~T010 Implement static completion for commands and flags~~ (alpha6)
+
+## Suggested Next Sprint
+
+Shortest route to next visible value:
+
+1. T011 Implement dynamic completion for events and categories
+2. T012 Make context resolution predictable
+3. T013 Harden `ctf path --cd` and `ctf add --cd`
+4. T017 Expand CTF integration coverage

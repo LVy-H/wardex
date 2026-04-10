@@ -7,38 +7,62 @@ Thank you for your interest in contributing to Wardex! This guide will help you 
 ```
 wardex/
 ├── src/
-│   ├── main.rs           # CLI entry point and command routing
-│   ├── config.rs         # Configuration management (layered: files + env vars)
-│   ├── engine/           # Core functionality modules
-│   │   ├── cleaner.rs    # Inbox sorting and file organization
-│   │   ├── ctf.rs        # CTF event management (init, import, writeup)
-│   │   ├── search.rs     # Flag hunting and pattern matching
-│   │   ├── stats.rs      # Workspace analytics and git status
-│   │   ├── status.rs     # Workspace health checks
-│   │   ├── auditor.rs    # Workspace validation and reporting
-│   │   ├── scaffold.rs   # Project structure generation
-│   │   ├── undo.rs       # Move history tracking and reversal
-│   │   └── mod.rs        # Module declarations
-│   └── ...
+│   ├── main.rs           # CLI entry point and command routing (clap)
+│   ├── lib.rs            # Module exports
+│   ├── config.rs         # Layered config: files → env vars → defaults
+│   ├── output.rs         # Display formatting for command reports
+│   ├── core/
+│   │   ├── state.rs      # Global CTF context (~/.local/share/wardex/)
+│   │   ├── templates.rs  # Solve script templates (pwn, web, generic)
+│   │   └── watcher.rs    # Real-time inbox file monitoring
+│   ├── engine/
+│   │   ├── cleaner.rs    # Inbox sorting via regex rules
+│   │   ├── scaffold.rs   # Project scaffolding (rust, python, node)
+│   │   ├── auditor.rs    # Workspace health checks
+│   │   ├── status.rs     # Git dashboard (parallel repo scanning)
+│   │   ├── search.rs     # Flag search, fuzzy find, content grep
+│   │   ├── stats.rs      # Workspace analytics
+│   │   ├── undo.rs       # Transaction log for reversible file moves
+│   │   └── ctf/          # CTF-specific modules
+│   │       ├── mod.rs        # CtfMeta struct, re-exports
+│   │       ├── event.rs      # Event lifecycle (create, list, schedule, finish)
+│   │       ├── challenge.rs  # Challenge add/solve/status/writeup
+│   │       ├── import.rs     # Smart archive import with category detection
+│   │       ├── archive.rs    # Event archival and zip creation
+│   │       ├── resolve.rs    # Fuzzy path resolution
+│   │       └── shelve.rs     # Interactive shelve workflow
+│   ├── tui/              # Optional TUI dashboard (feature-gated)
+│   └── utils/
+│       └── fs.rs         # Cross-device file moves via fs_extra
+├── tests/
+│   └── cli_integration.rs  # Integration tests (assert_cmd + tempfile)
+├── docs/                 # Architecture, design, RFCs, and planning docs
 ├── README.md             # User documentation
-├── docs/                 # Architecture, preview, and planning docs
+├── CHANGELOG.md          # Version history and migration guides
 └── CONTRIBUTING.md       # You are here!
 ```
 
-Planning docs for upcoming work live in [`docs/plan/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/README.md).
+Planning docs for upcoming work live in [`docs/plan/README.md`](docs/plan/README.md).
 
 ## Engine Modules
 
 Each module in `src/engine/` implements a specific feature domain:
 
-| Module | Purpose | Key Functions |
-|--------|---------|---------------|
-| `clean.rs` | Inbox automation | `clean_inbox()`, `organize_by_rules()` |
-| `ctf.rs` | CTF lifecycle | `init_event()`, `import_challenge()`, `generate_writeup()` |
+| Module | Purpose | Key Types/Functions |
+|--------|---------|---------------------|
+| `cleaner.rs` | Inbox automation | `clean_inbox()` |
+| `ctf/event.rs` | Event lifecycle | `create_event()`, `list_events()`, `finish_event()` |
+| `ctf/challenge.rs` | Challenge management | `add_challenge()`, `solve_challenge()`, `challenge_status()` |
+| `ctf/shelve.rs` | Interactive shelve flow | `shelve_challenge()` |
+| `ctf/import.rs` | Smart archive import | `import_challenge()` |
+| `ctf/archive.rs` | Event archival | `archive_event()` |
+| `ctf/resolve.rs` | Fuzzy path resolution | `resolve_event()`, `resolve_challenge()` |
 | `search.rs` | Flag detection | `search_flags()`, `scan_archives()` |
-| `stats.rs` | Workspace health | `git_status_all()`, `audit_workspace()` |
+| `status.rs` | Git dashboard | `git_status_all()` |
+| `auditor.rs` | Workspace audit | `audit_workspace()` |
+| `stats.rs` | Workspace analytics | `workspace_stats()` |
+| `scaffold.rs` | Project scaffolding | `scaffold_project()` |
 | `undo.rs` | Safety net | `track_move()`, `revert_operations()` |
-| `watch.rs` | Live monitoring | `watch_directory()`, `handle_fs_events()` |
 
 ## Architecture
 
@@ -78,8 +102,8 @@ Example: `wardex ctf import challenge.zip`
 
 Wardex uses lightweight design docs for CLI decisions:
 
-- [`docs/CLI_DESIGN.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/CLI_DESIGN.md) defines the command design rules
-- [`docs/rfcs/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/rfcs/README.md) explains when to write an RFC
+- [`docs/CLI_DESIGN.md`](docs/CLI_DESIGN.md) defines the command design rules
+- [`docs/rfcs/README.md`](docs/rfcs/README.md) explains when to write an RFC
 
 Please use the RFC process for major CLI, shell integration, workflow, or command-semantics changes.
 
@@ -119,7 +143,7 @@ cargo install --path .
    CtfCommand::Stats => engine::ctf::show_stats(&config)?,
    ```
 
-2. **Implement in Engine** (`src/engine/ctf.rs`):
+2. **Implement in Engine** (e.g., `src/engine/ctf/event.rs` or a new file in `src/engine/ctf/`):
    ```rust
    pub fn show_stats(config: &Config) -> Result<()> {
        // Implementation

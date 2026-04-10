@@ -8,9 +8,6 @@
 ### 🚩 CTF Logistics (Structural Mastery)
 Perfectly organized workspaces, zero manual setup.
 
-#### 1. � Smart Import & Categorization
-Downloaded `chall.zip`? Don't unarchive it manually.
-```bash
 #### 1. ⚡ Smart Import & Categorization
 Downloaded `chall.zip`? Don't unarchive it manually.
 ```bash
@@ -63,12 +60,30 @@ wardex init --type rust --name "my-api"
 
 ---
 
-## 🛠️ Configuration
-Totally customizable templates.
+## 📦 Interactive Shelve System (New in alpha5)
 
-```toml
-[ctf.heuristics]
-# Define your own rules for smart import
-pwn = ["*.elf", "libc.so*", "ld-*.so"]
-web = ["package.json", "app.py", "Dockerfile"]
+Wardex's signature challenge completion flow. One command handles flag capture, file cleanup, notes, and archival.
+
+```bash
+wardex ctf shelve                        # Interactive guided flow
+wardex ctf shelve "flag{got_it}" --auto  # Quick scripted use
+```
+
+## 🐚 Shell Completions (New in alpha6)
+
+Tab completion for all commands and flags:
+```bash
+wardex completions bash > ~/.local/share/bash-completion/completions/wardex
+wardex completions zsh > ~/.zfunc/_wardex
+```
+
+## 🛠️ Configuration
+Totally customizable via `config.yaml`:
+
+```yaml
+ctf:
+  default_categories: [web, pwn, crypto, rev, misc]
+  shelve:
+    blacklist: [node_modules, .venv, __pycache__]
+    whitelist: ["solve.*", notes.md, Dockerfile]
 ```

@@ -2,19 +2,21 @@
 
 This roadmap assumes Wardex continues as an alpha Rust CLI with a CTF-first identity and shell-native workflows.
 
-## Phase 0: CTF Product Contract
+## Phase 0: CTF Product Contract (Complete)
 
 Goal: define the exact CTF and shell experience Wardex wants to own.
 
+Status: **All deliverables shipped across alpha4–alpha6.**
+
 ### Deliverables
 
-- Define the supported CTF lifecycle around the shelve system: core six (`init`, `use`, `add`, `import`, `shelve`, `finish`) plus supporting commands (`path`, `info`, `status`, `list`, `check`, `schedule`, `writeup`, `archive`).
-- Implement `ctf shelve` with interactive-first design and `.challenge.json` metadata.
-- Add `--cd` to `ctf add`; make `work`, `solve`, `done` hidden aliases.
-- Decide which commands must be completion-aware and what each one should suggest.
-- Document the intended shell story for Bash and Zsh first.
+- ~~Define the supported CTF lifecycle around the shelve system.~~ (alpha4, `docs/ctf-lifecycle.md`)
+- ~~Implement `ctf shelve` with interactive-first design and `.challenge.json` metadata.~~ (alpha5)
+- ~~Add `--cd` to `ctf add`; make `work`, `solve`, `done` hidden aliases.~~ (alpha4)
+- ~~Decide which commands must be completion-aware and what each one should suggest.~~ (RFC 0002, alpha6)
+- ~~Document the intended shell story for Bash and Zsh first.~~ (output contracts, alpha6)
 
-### Exit Criteria
+### Exit Criteria — Met
 
 - There is one documented CTF workflow that the repo clearly optimizes for.
 - Completion targets and shell integration behavior are specified before implementation work expands.
@@ -38,22 +40,22 @@ Goal: make the core event and challenge workflow reliable enough for active comp
 - Common CTF mistakes produce actionable errors and recovery hints.
 - Path-printing commands are safe and predictable for shell use.
 
-## Phase 2: Shell-First Integration
+## Phase 2: Shell-First Integration (In Progress)
 
 Goal: make Wardex feel native in the terminal instead of merely callable from it.
 
 ### Deliverables
 
-- Implement shell completion generation or maintained completion scripts for Bash and Zsh.
-- Support tab completion for subcommands, event names, categories, challenge paths, and key flags where practical.
+- ~~Implement shell completion generation or maintained completion scripts for Bash and Zsh.~~ (alpha6, `wardex completions <shell>`)
+- Support tab completion for event names, categories, challenge paths (dynamic completion — not yet implemented).
 - Refine shell integration around `ctf path`, `ctf add --cd`, `ctf use`, and related wrappers.
-- Add shell-install docs and example aliases/functions that feel low-friction.
-- Ensure machine-friendly output modes stay stable for shell evaluation and scripting.
+- ~~Add shell-install docs and example aliases/functions that feel low-friction.~~ (CHANGELOG, README)
+- ~~Ensure machine-friendly output modes stay stable for shell evaluation and scripting.~~ (`docs/shell-output-contracts.md`)
 
 ### Exit Criteria
 
 - A user can navigate common flows mostly through completion and short commands.
-- Bash and Zsh users can install completion without reverse-engineering the repo.
+- ~~Bash and Zsh users can install completion without reverse-engineering the repo.~~
 - Shell wrappers no longer feel like fragile add-ons.
 
 ## Phase 3: CTF Workflow Polish

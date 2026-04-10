@@ -34,6 +34,7 @@ src/
       import.rs        Smart archive import with category detection
       archive.rs       Event archival and zip creation
       resolve.rs       Fuzzy path resolution for events and challenges
+      shelve.rs        Interactive shelve workflow (status, flag, triage, notes)
 
   tui/                 (feature-gated behind --features tui)
     mod.rs, app.rs, event.rs, ui.rs, update.rs
@@ -44,7 +45,7 @@ src/
 
 ## Key Data Flows
 
-### CTF Init → Solve → Finish
+### CTF Init → Shelve → Finish
 
 ```
 wardex ctf init MyEvent
@@ -57,16 +58,17 @@ wardex ctf add pwn/heap-overflow
   → get_active_event_root() → walk up CWD or check global state
   → mkdir {event}/pwn/heap-overflow/
   → write solve.py template
+  → write .challenge.json (status: active)
 
-wardex ctf solve "flag{found_it}"
-  → save flag.txt
-  → detect solve.py → append to notes.md
+wardex ctf shelve [flag]
+  → interactive prompts: status → flag → file triage → note → archive
+  → update .challenge.json (status, flag, solved_by, note, shelved_at)
+  → file triage: delete blacklisted files, keep whitelisted
   → git add + commit (skippable with --no-commit)
-  → create solution.zip (skippable with --no-archive)
-  → move challenge to 4_Archives/CTFs/{year}/{event}/{category}/{name}
+  → optionally move challenge to 4_Archives/
 
 wardex ctf finish
-  → git clean -dXn → interactive cleanup
+  → shelve remaining unshelved challenges
   → git add + commit
   → mark end_time in metadata
   → archive_event() → move to 4_Archives/CTFs/{year}/

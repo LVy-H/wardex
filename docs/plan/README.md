@@ -8,8 +8,8 @@ Wardex is already beyond a prototype. The CLI, configuration layer, CTF workflow
 
 Based on the repository review:
 
-- The core CLI is implemented in [`src/main.rs`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/src/main.rs).
-- Business logic is split into focused modules under [`src/engine`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/src/engine).
+- The core CLI is implemented in [`src/main.rs`](../../src/main.rs).
+- Business logic is split into focused modules under [`src/engine`](../../src/engine).
 - CTF flows are the most mature product area and should drive near-term product decisions.
 - Configuration, global state, watcher support, and optional TUI plumbing already exist.
 - The automated baseline is healthy: `cargo test` passed locally on April 9, 2026.
@@ -43,14 +43,14 @@ For now, planning effort should concentrate on the CTF experience and shell inte
 
 ## Documents In This Folder
 
-- [`review.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/review.md): repository assessment and planning rationale
-- [`roadmap.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/roadmap.md): phased release and upgrade path
-- [`workstreams.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/workstreams.md): concrete engineering tracks, backlog themes, and success measures
-- [`ctf-shell-plan.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/ctf-shell-plan.md): focused plan for CTF workflow and shell-native ergonomics
-- [`task-list.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/plan/task-list.md): prioritized execution backlog and suggested issue order
+- [`review.md`](review.md): repository assessment and planning rationale
+- [`roadmap.md`](roadmap.md): phased release and upgrade path
+- [`workstreams.md`](workstreams.md): concrete engineering tracks, backlog themes, and success measures
+- [`ctf-shell-plan.md`](ctf-shell-plan.md): focused plan for CTF workflow and shell-native ergonomics
+- [`task-list.md`](task-list.md): prioritized execution backlog and suggested issue order
 
 Related project-wide guidance:
 
-- [`docs/CLI_DESIGN.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/CLI_DESIGN.md): CLI and shell design rules
-- [`docs/ctf-lifecycle.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/ctf-lifecycle.md): draft CTF lifecycle and command naming stance
-- [`docs/rfcs/README.md`](/run/host/mnt/Data/Workspace/1_Projects/Dev-CLI-Wardex/docs/rfcs/README.md): RFC process for major changes
+- [`docs/CLI_DESIGN.md`](../CLI_DESIGN.md): CLI and shell design rules
+- [`docs/ctf-lifecycle.md`](../ctf-lifecycle.md): CTF lifecycle and command naming (implemented in alpha4–alpha6)
+- [`docs/rfcs/README.md`](../rfcs/README.md): RFC process for major changes

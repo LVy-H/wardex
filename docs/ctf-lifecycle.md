@@ -1,6 +1,6 @@
 # CTF Lifecycle
 
-Status: Draft
+Status: Implemented (alpha4–alpha6)
 
 This document defines the canonical CTF workflow in Wardex and the design decisions behind it.
 
