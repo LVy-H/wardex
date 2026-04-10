@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use config::{Config as ConfigBuilder, Environment, File, FileFormat};
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -27,9 +26,6 @@ pub struct Paths {
     pub archives: Option<PathBuf>,
     /// Explicit CTF root path (optional, defaults to projects/CTFs)
     pub ctf_root: Option<PathBuf>,
-    /// Additional custom paths for rules
-    #[serde(flatten, default)]
-    pub custom: HashMap<String, String>,
 }
 
 impl Default for Paths {
@@ -43,7 +39,6 @@ impl Default for Paths {
             resources: None,
             archives: None,
             ctf_root: None,
-            custom: HashMap::new(),
         }
     }
 }
@@ -185,7 +180,7 @@ impl Config {
             .context("Failed to deserialize config")
     }
 
-    /// Load from a specific file path
+    /// Load from a specific file path with env var overrides (WX_*).
     pub fn load_from_file(path: &std::path::Path) -> Result<Self> {
         let builder = ConfigBuilder::builder()
             .add_source(File::from(path.to_path_buf()).format(FileFormat::Yaml))
@@ -232,10 +227,6 @@ impl Config {
                 .unwrap_or_else(|| self.paths.workspace.join("4_Archives")),
             "ctf_root" => self.ctf_root(),
             _ => {
-                // Check custom paths
-                if let Some(path) = self.paths.custom.get(key) {
-                    return PathBuf::from(path);
-                }
                 // Fallback: treat as relative path from projects
                 self.resolve_path("projects").join(key)
             }
