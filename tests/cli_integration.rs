@@ -1093,3 +1093,152 @@ fn test_experimental_labels_in_help() {
         assert!(!is_experimental, "Command '{}' should NOT be marked [experimental]", cmd_name);
     }
 }
+
+// ── T006: ctf use / info / writeup / archive / solve ─────────────────
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_use_switches_context() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(&["ctf", "init", "EventA"]).assert().success();
+    env.cmd().args(&["ctf", "init", "EventB"]).assert().success();
+
+    // Info should show EventB (last init auto-activates)
+    env.cmd()
+        .args(&["ctf", "info"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("EventB"));
+
+    // Switch to EventA
+    env.cmd().args(&["ctf", "use", "EventA"]).assert().success();
+
+    // Info should now show EventA
+    env.cmd()
+        .args(&["ctf", "info"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("EventA"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_info_shows_context() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(&["ctf", "init", "InfoTestCTF"]).assert().success();
+
+    env.cmd()
+        .args(&["ctf", "info"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("InfoTestCTF"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_writeup_generates_output() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(&["ctf", "init", "WriteupCTF"]).assert().success();
+    env.cmd().args(&["ctf", "add", "web/writeup-test"]).assert().success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("WriteupCTF"))
+        .unwrap()
+        .path();
+
+    // Write notes for the challenge
+    let notes_path = event_dir.join("web/writeup-test/notes.md");
+    fs::write(&notes_path, "# Solution\nUsed SQL injection on login form.").unwrap();
+
+    // Generate writeup
+    env.cmd()
+        .args(&["ctf", "writeup"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Generated writeup"));
+
+    // Verify Writeup.md was created
+    assert!(event_dir.join("Writeup.md").exists());
+    let content = fs::read_to_string(event_dir.join("Writeup.md")).unwrap();
+    assert!(content.contains("writeup-test"));
+    assert!(content.contains("SQL injection"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_archive_moves_event() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(&["ctf", "init", "ArchiveTestCTF"]).assert().success();
+
+    env.cmd()
+        .args(&["ctf", "archive", "ArchiveTestCTF"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("archived"));
+
+    // Verify event moved to archives
+    let archives = env.path().join("4_Archives/CTFs");
+    let has_entries = fs::read_dir(&archives)
+        .map(|rd| rd.count() > 0)
+        .unwrap_or(false);
+    assert!(has_entries, "Event should be in archives");
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_solve_legacy_writes_flag() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd().args(&["ctf", "init", "SolveLegacyCTF"]).assert().success();
+    env.cmd().args(&["ctf", "add", "misc/solve-test"]).assert().success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("SolveLegacyCTF"))
+        .unwrap()
+        .path();
+
+    let challenge_dir = event_dir.join("misc/solve-test");
+
+    // Init git for the commit
+    let _ = std::process::Command::new("git").arg("init").current_dir(&event_dir).output();
+    let _ = std::process::Command::new("git").args(&["config", "user.name", "Test"]).current_dir(&event_dir).output();
+    let _ = std::process::Command::new("git").args(&["config", "user.email", "t@t.com"]).current_dir(&event_dir).output();
+    let _ = std::process::Command::new("git").args(&["commit", "--allow-empty", "-m", "init"]).current_dir(&event_dir).output();
+
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    cmd.current_dir(&challenge_dir);
+    cmd.env("WX_PATHS_WORKSPACE", env.path());
+    cmd.env("XDG_CONFIG_HOME", env.path());
+    cmd.env("XDG_DATA_HOME", env.path());
+    cmd.env("HOME", env.path());
+    cmd.args(&["ctf", "solve", "flag{legacy_test}", "--no-archive"]);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Saved flag"));
+
+    // Verify flag.txt was written (legacy solve writes flag.txt)
+    assert!(challenge_dir.join("flag.txt").exists());
+    let flag_content = fs::read_to_string(challenge_dir.join("flag.txt")).unwrap();
+    assert_eq!(flag_content, "flag{legacy_test}");
+}
