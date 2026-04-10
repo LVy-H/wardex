@@ -170,11 +170,7 @@ pub fn challenge_completer(current: &OsStr) -> Vec<CompletionCandidate> {
             let chal_name = chal.file_name().to_string_lossy().to_string();
             let full_path = format!("{}/{}", cat_name, chal_name);
 
-            if prefix.is_empty()
-                || full_path
-                    .to_lowercase()
-                    .starts_with(&prefix.to_lowercase())
-            {
+            if prefix.is_empty() || full_path.to_lowercase().starts_with(&prefix.to_lowercase()) {
                 challenges.push(CompletionCandidate::new(full_path));
             }
         }

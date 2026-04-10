@@ -1268,11 +1268,7 @@ fn test_ctf_writeup_redacts_flags() {
     let meta_path = event_dir.join("web/redact-test/.challenge.json");
     let meta_content = r#"{"schema_version":1,"name":"redact-test","category":"web","status":"solved","flag":"flag{secret}","solved_by":"me","note":null,"imported_from":null,"shelved_at":null,"created_at":"2026-04-10T12:00:00"}"#;
     fs::write(&meta_path, meta_content).unwrap();
-    fs::write(
-        event_dir.join("web/redact-test/notes.md"),
-        "Found the bug.",
-    )
-    .unwrap();
+    fs::write(event_dir.join("web/redact-test/notes.md"), "Found the bug.").unwrap();
 
     env.cmd()
         .args(["ctf", "writeup", "--no-flags"])

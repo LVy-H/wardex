@@ -292,16 +292,14 @@ impl Config {
 
         for pat in &self.ctf.shelve.blacklist {
             if pat.trim().is_empty() {
-                warnings.push(
-                    "Empty pattern in ctf.shelve.blacklist — will be ignored.".to_string(),
-                );
+                warnings
+                    .push("Empty pattern in ctf.shelve.blacklist — will be ignored.".to_string());
             }
         }
         for pat in &self.ctf.shelve.whitelist {
             if pat.trim().is_empty() {
-                warnings.push(
-                    "Empty pattern in ctf.shelve.whitelist — will be ignored.".to_string(),
-                );
+                warnings
+                    .push("Empty pattern in ctf.shelve.whitelist — will be ignored.".to_string());
             }
         }
 

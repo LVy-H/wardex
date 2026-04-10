@@ -372,7 +372,10 @@ fn main() -> Result<()> {
             output::display_clean_report(&config, &report);
         }
         Commands::Ctf { command } => {
-            if !matches!(command, CtfCommands::Check | CtfCommands::List | CtfCommands::Recent) {
+            if !matches!(
+                command,
+                CtfCommands::Check | CtfCommands::List | CtfCommands::Recent
+            ) {
                 ctf::check_active_expiry(&config);
             }
             match command {
@@ -540,8 +543,7 @@ fn main() -> Result<()> {
                     } else {
                         println!("Recent CTF events:");
                         for (i, event) in state.recent_events.iter().enumerate() {
-                            let current =
-                                state.current_event_path.as_ref() == Some(&event.path);
+                            let current = state.current_event_path.as_ref() == Some(&event.path);
                             let marker = if current { " (active)" } else { "" };
                             let exists = if event.path.exists() {
                                 ""

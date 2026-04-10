@@ -62,9 +62,7 @@ impl AppState {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        let now = chrono::Local::now()
-            .format("%Y-%m-%dT%H:%M:%S")
-            .to_string();
+        let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
 
         self.recent_events.retain(|r| r.path != canonical);
         self.recent_events.insert(

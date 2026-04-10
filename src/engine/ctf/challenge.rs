@@ -315,8 +315,10 @@ pub fn generate_writeup(_config: &Config, no_flags: bool) -> Result<()> {
 
     let event_meta =
         CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
-    let mut writeup_content =
-        format!("# Writeup: {}\n\nDate: {}\n\n", event_meta.name, event_meta.date);
+    let mut writeup_content = format!(
+        "# Writeup: {}\n\nDate: {}\n\n",
+        event_meta.name, event_meta.date
+    );
 
     // Collect challenge data for summary
     let mut solved_me = 0usize;
@@ -342,8 +344,9 @@ pub fn generate_writeup(_config: &Config, no_flags: bool) -> Result<()> {
                             let chal_name = chal.file_name().to_string_lossy().to_string();
 
                             // Load metadata
-                            let cmeta =
-                                ChallengeMetadata::load_or_migrate(&chal.path()).ok().flatten();
+                            let cmeta = ChallengeMetadata::load_or_migrate(&chal.path())
+                                .ok()
+                                .flatten();
 
                             // Count for summary
                             if let Some(ref m) = cmeta {
@@ -381,16 +384,14 @@ pub fn generate_writeup(_config: &Config, no_flags: bool) -> Result<()> {
                                 }
                                 if let Some(ref flag) = m.flag {
                                     if no_flags {
-                                        challenge_sections
-                                            .push_str("- **Flag:** `[redacted]`\n");
+                                        challenge_sections.push_str("- **Flag:** `[redacted]`\n");
                                     } else {
                                         challenge_sections
                                             .push_str(&format!("- **Flag:** `{}`\n", flag));
                                     }
                                 }
                                 if let Some(ref note) = m.note {
-                                    challenge_sections
-                                        .push_str(&format!("- **Note:** {}\n", note));
+                                    challenge_sections.push_str(&format!("- **Note:** {}\n", note));
                                 }
                                 if let Some(ref shelved) = m.shelved_at {
                                     challenge_sections
@@ -480,40 +481,30 @@ pub fn challenge_status(config: &Config, format: &str) -> Result<()> {
                 if let Ok(chals) = fs::read_dir(cat.path()) {
                     for chal in chals.flatten() {
                         if chal.path().is_dir() {
-                            let (display_status, solver, note_preview) =
-                                if let Ok(Some(cmeta)) =
-                                    ChallengeMetadata::load_or_migrate(&chal.path())
-                                {
-                                    let status_str = match cmeta.status {
-                                        super::ChallengeStatus::Solved => "✓ Solved".to_string(),
-                                        super::ChallengeStatus::TeamSolved => {
-                                            "✓ Team".to_string()
-                                        }
-                                        super::ChallengeStatus::Unsolved => {
-                                            "✗ Unsolved".to_string()
-                                        }
-                                        super::ChallengeStatus::Active => "⌚ Active".to_string(),
-                                    };
-                                    let solver =
-                                        cmeta.solved_by.unwrap_or_else(|| "-".to_string());
-                                    let note = cmeta
-                                        .note
-                                        .map(|n| {
-                                            if n.len() > 30 {
-                                                format!("{}...", &n[..27])
-                                            } else {
-                                                n
-                                            }
-                                        })
-                                        .unwrap_or_else(|| "-".to_string());
-                                    (status_str, solver, note)
-                                } else {
-                                    (
-                                        "⌚ Active".to_string(),
-                                        "-".to_string(),
-                                        "-".to_string(),
-                                    )
+                            let (display_status, solver, note_preview) = if let Ok(Some(cmeta)) =
+                                ChallengeMetadata::load_or_migrate(&chal.path())
+                            {
+                                let status_str = match cmeta.status {
+                                    super::ChallengeStatus::Solved => "✓ Solved".to_string(),
+                                    super::ChallengeStatus::TeamSolved => "✓ Team".to_string(),
+                                    super::ChallengeStatus::Unsolved => "✗ Unsolved".to_string(),
+                                    super::ChallengeStatus::Active => "⌚ Active".to_string(),
                                 };
+                                let solver = cmeta.solved_by.unwrap_or_else(|| "-".to_string());
+                                let note = cmeta
+                                    .note
+                                    .map(|n| {
+                                        if n.len() > 30 {
+                                            format!("{}...", &n[..27])
+                                        } else {
+                                            n
+                                        }
+                                    })
+                                    .unwrap_or_else(|| "-".to_string());
+                                (status_str, solver, note)
+                            } else {
+                                ("⌚ Active".to_string(), "-".to_string(), "-".to_string())
+                            };
                             statuses.push(ChallengeStatusRow {
                                 category: cat_name.clone(),
                                 challenge: chal.file_name().to_string_lossy().to_string(),
@@ -603,7 +594,10 @@ pub fn challenge_status(config: &Config, format: &str) -> Result<()> {
         .iter()
         .filter(|s| s.status.contains("Solved") && s.solved_by == "me")
         .count();
-    let solved_team = statuses.iter().filter(|s| s.status.contains("Team")).count();
+    let solved_team = statuses
+        .iter()
+        .filter(|s| s.status.contains("Team"))
+        .count();
     let unsolved = statuses
         .iter()
         .filter(|s| s.status.contains("Unsolved"))
