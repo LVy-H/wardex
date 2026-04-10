@@ -121,6 +121,68 @@ pub fn event_completer(current: &OsStr) -> Vec<CompletionCandidate> {
         .collect()
 }
 
+/// Complete challenge paths as `category/challenge` within the active event.
+/// Used for `ctf path <event> <challenge>` and similar commands.
+pub fn challenge_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    let prefix = current.to_string_lossy();
+
+    let event_root = match resolve_active_event() {
+        Some(path) if path.exists() => path,
+        _ => match resolve_ctf_root() {
+            Some(root) => match std::fs::read_dir(&root) {
+                Ok(entries) => match entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .max_by_key(|e| e.file_name())
+                {
+                    Some(latest) => latest.path(),
+                    None => return Vec::new(),
+                },
+                Err(_) => return Vec::new(),
+            },
+            None => return Vec::new(),
+        },
+    };
+
+    let mut challenges = Vec::new();
+
+    let Ok(cats) = std::fs::read_dir(&event_root) else {
+        return Vec::new();
+    };
+
+    for cat in cats.flatten() {
+        if !cat.path().is_dir() {
+            continue;
+        }
+        let cat_name = cat.file_name().to_string_lossy().to_string();
+        if cat_name.starts_with('.') {
+            continue;
+        }
+
+        let Ok(chals) = std::fs::read_dir(cat.path()) else {
+            continue;
+        };
+
+        for chal in chals.flatten() {
+            if !chal.path().is_dir() {
+                continue;
+            }
+            let chal_name = chal.file_name().to_string_lossy().to_string();
+            let full_path = format!("{}/{}", cat_name, chal_name);
+
+            if prefix.is_empty()
+                || full_path
+                    .to_lowercase()
+                    .starts_with(&prefix.to_lowercase())
+            {
+                challenges.push(CompletionCandidate::new(full_path));
+            }
+        }
+    }
+
+    challenges
+}
+
 /// Complete category names for commands like `ctf add <cat/name>`.
 ///
 /// If the user has not yet typed a `/`, suggests category directories
@@ -204,5 +266,17 @@ mod tests {
     fn category_completer_skips_after_slash() {
         let results = category_completer(OsStr::new("pwn/"));
         assert!(results.is_empty(), "should not complete after slash");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn challenge_completer_returns_empty_when_no_event() {
+        std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
+        std::env::set_var("WX_PATHS_CTF_ROOT", "/nonexistent/path/for/testing");
+        std::env::remove_var("WX_PATHS_WORKSPACE");
+        let results = challenge_completer(OsStr::new(""));
+        let _ = results;
+        std::env::remove_var("WARDEX_STATE_FILE");
+        std::env::remove_var("WX_PATHS_CTF_ROOT");
     }
 }

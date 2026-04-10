@@ -107,7 +107,7 @@ enum CtfCommands {
     Path {
         #[arg(help = "Event name (optional, defaults to current context or latest)", add = ArgValueCompleter::new(ctf::completions::event_completer))]
         event: Option<String>,
-        #[arg(help = "Challenge name (optional)")]
+        #[arg(help = "Challenge name (optional)", add = ArgValueCompleter::new(ctf::completions::challenge_completer))]
         challenge: Option<String>,
         #[arg(long, help = "Output as 'cd <path>' for eval in shell")]
         cd: bool,
