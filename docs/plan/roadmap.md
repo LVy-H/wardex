@@ -22,7 +22,7 @@ Status: **All deliverables shipped across alpha4–alpha6.**
 - Completion targets and shell integration behavior are specified before implementation work expands.
 - User-facing docs communicate the CTF-first product direction clearly.
 
-## Phase 1: CTF Lifecycle Hardening
+## Phase 1: CTF Lifecycle Hardening (Complete)
 
 Goal: make the core event and challenge workflow reliable enough for active competition use.
 

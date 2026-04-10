@@ -75,9 +75,7 @@ pub fn import_challenge(
             .unwrap_or("unknown_chall")
             .to_string();
         // If the stem still ends with .tar (from .tar.gz etc.), strip it
-        stem.strip_suffix(".tar")
-            .unwrap_or(&stem)
-            .to_string()
+        stem.strip_suffix(".tar").unwrap_or(&stem).to_string()
     };
 
     let challenge_name = if let Some(name) = name_override {

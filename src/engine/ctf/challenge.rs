@@ -23,7 +23,9 @@ pub fn add_challenge(_config: &Config, path: &str) -> Result<std::path::PathBuf>
         if current_dir.parent() == Some(&event_root) {
             let cat_name = current_dir
                 .file_name()
-                .ok_or_else(|| anyhow::anyhow!("Cannot determine category: current directory has no name"))?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Cannot determine category: current directory has no name")
+                })?
                 .to_string_lossy();
             (cat_name.to_string(), parts[0].to_string())
         } else {
@@ -91,7 +93,11 @@ pub fn solve_challenge(
                 if parent == event_root {
                     let cat_name = cwd
                         .file_name()
-                        .ok_or_else(|| anyhow::anyhow!("Cannot determine category: current directory has no name"))?
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Cannot determine category: current directory has no name"
+                            )
+                        })?
                         .to_string_lossy()
                         .to_string();
                     (cat_name, parts[0].to_string())
@@ -238,7 +244,10 @@ pub fn solve_challenge(
         println!("Compressing artifacts...");
         let zip_path = current_dir.join("solution.zip");
         if let Err(e) = super::archive::create_zip(&current_dir, &zip_path) {
-            println!("! Failed to create solution.zip (probably no git repo): {}", e);
+            println!(
+                "! Failed to create solution.zip (probably no git repo): {}",
+                e
+            );
         } else {
             println!("✓ Created solution.zip");
         }
@@ -283,7 +292,9 @@ pub fn solve_challenge(
                         let options = fs_extra::dir::CopyOptions::new();
                         fs_extra::dir::copy(
                             &current_dir,
-                            target_dir.parent().context("Archive target path has no parent directory")?,
+                            target_dir
+                                .parent()
+                                .context("Archive target path has no parent directory")?,
                             &options,
                         )
                         .context("Failed to archive (cross-device move)")?;
@@ -302,8 +313,7 @@ pub fn solve_challenge(
 pub fn generate_writeup(_config: &Config) -> Result<()> {
     let event_root = super::get_active_event_root()?;
 
-    let meta =
-        CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
+    let meta = CtfMeta::load(&event_root)?.context("No CTF metadata found (.ctf_meta.json)")?;
     let mut writeup_content = format!("# Writeup: {}\n\nDate: {}\n\n", meta.name, meta.date);
 
     // Walk through categories and challenges
@@ -369,13 +379,13 @@ pub fn challenge_status(config: &Config) -> Result<()> {
     let event_root = super::get_active_event_root()?;
     let meta = CtfMeta::load(&event_root)?
         .ok_or_else(|| anyhow::anyhow!("No CTF metadata found (.ctf_meta.json)"))?;
-    
+
     let event_name = event_root
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
     let archives_root = config.ctf_archive_path(&meta.year.to_string(), &event_name);
-        
+
     let mut statuses = Vec::new();
 
     // 1. Scan Active Event Dir for Unsolved
@@ -386,10 +396,14 @@ pub fn challenge_status(config: &Config) -> Result<()> {
                 if let Ok(chals) = fs::read_dir(cat.path()) {
                     for chal in chals.flatten() {
                         if chal.path().is_dir() {
-                            let display_status = if let Ok(Some(meta)) = ChallengeMetadata::load_or_migrate(&chal.path()) {
+                            let display_status = if let Ok(Some(meta)) =
+                                ChallengeMetadata::load_or_migrate(&chal.path())
+                            {
                                 match meta.status {
                                     super::ChallengeStatus::Solved => "✓ Solved".to_string(),
-                                    super::ChallengeStatus::TeamSolved => "✓ Team-Solved".to_string(),
+                                    super::ChallengeStatus::TeamSolved => {
+                                        "✓ Team-Solved".to_string()
+                                    }
                                     super::ChallengeStatus::Unsolved => "✗ Unsolved".to_string(),
                                     super::ChallengeStatus::Active => "⌚ Active".to_string(),
                                 }
@@ -437,12 +451,13 @@ pub fn challenge_status(config: &Config) -> Result<()> {
 
     // Sort by Category, then Status (Active first), then Challenge Name
     statuses.sort_by(|a, b| {
-        a.category.cmp(&b.category)
+        a.category
+            .cmp(&b.category)
             .then_with(|| a.status.cmp(&b.status))
             .then_with(|| a.challenge.cmp(&b.challenge))
     });
 
-    use tabled::{Table, settings::Style};
+    use tabled::{settings::Style, Table};
     let mut table = Table::new(statuses);
     table.with(Style::modern());
 

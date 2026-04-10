@@ -456,7 +456,15 @@ fn test_ctf_schedule_command() {
     env.create_config();
 
     env.cmd()
-        .args(["ctf", "init", "SchedEvent", "--start", "2026-03-01 10:00", "--end", "2026-03-03 18:00"])
+        .args([
+            "ctf",
+            "init",
+            "SchedEvent",
+            "--start",
+            "2026-03-01 10:00",
+            "--end",
+            "2026-03-03 18:00",
+        ])
         .assert()
         .success();
 
@@ -467,7 +475,7 @@ fn test_ctf_schedule_command() {
         .find(|e| e.file_name().to_string_lossy().contains("SchedEvent"))
         .unwrap()
         .path();
-    
+
     let meta_content = fs::read_to_string(event_dir.join(".ctf_meta.json")).unwrap();
     assert!(meta_content.contains("start_time"));
     assert!(meta_content.contains("end_time"));
@@ -537,7 +545,15 @@ fn test_ctf_check_command() {
     env.create_config();
 
     env.cmd()
-        .args(["ctf", "init", "ExpiredEvent", "--start", "2020-01-01 10:00", "--end", "2020-01-02 10:00"])
+        .args([
+            "ctf",
+            "init",
+            "ExpiredEvent",
+            "--start",
+            "2020-01-01 10:00",
+            "--end",
+            "2020-01-02 10:00",
+        ])
         .assert()
         .success();
 
@@ -570,10 +586,14 @@ fn test_ctf_path_fuzzy_command() {
     let event_dir = fs::read_dir(&ctf_root)
         .unwrap()
         .filter_map(|e| e.ok())
-        .find(|e| e.file_name().to_string_lossy().contains("SuperSecretCTF2026"))
+        .find(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .contains("SuperSecretCTF2026")
+        })
         .unwrap()
         .path();
-    
+
     fs::create_dir_all(event_dir.join("pwn/buffer-overflow")).unwrap();
 
     env.cmd()
@@ -605,7 +625,7 @@ fn test_ctf_status_command() {
         .args(["ctf", "add", "pwn/solved-chal"])
         .assert()
         .success();
-    
+
     // We have to navigate into the challenge dir to solve it properly (per how solve works)
     let ctf_root = env.path().join("1_Projects/CTFs");
     let event_dir = fs::read_dir(&ctf_root)
@@ -628,19 +648,17 @@ fn test_ctf_status_command() {
         .args(["config", "user.email", "test@example.com"])
         .current_dir(&event_dir)
         .output();
-    // Create an initial commit so adding works 
+    // Create an initial commit so adding works
     let _ = std::process::Command::new("git")
         .args(["commit", "--allow-empty", "-m", "init"])
         .current_dir(&event_dir)
         .output();
-    
+
     let mut cmd = env.cmd();
     cmd.env("RUST_BACKTRACE", "1");
     cmd.current_dir(event_dir.join("pwn/solved-chal"));
-    let output = cmd.args(["ctf", "solve", "flag{test}"])
-        .output()
-        .unwrap();
-    
+    let output = cmd.args(["ctf", "solve", "flag{test}"]).output().unwrap();
+
     if !output.status.success() {
         panic!("Solve failed");
     }
@@ -688,7 +706,10 @@ fn test_ctf_add_creates_challenge_json() {
 
     let event_dir = &event_dirs[0].path();
     let challenge_json = event_dir.join("pwn/metadata-test/.challenge.json");
-    assert!(challenge_json.exists(), ".challenge.json should be created by ctf add");
+    assert!(
+        challenge_json.exists(),
+        ".challenge.json should be created by ctf add"
+    );
 
     // Verify contents
     let content = fs::read_to_string(&challenge_json).unwrap();
@@ -730,10 +751,13 @@ fn test_ctf_import_creates_challenge_json_with_imported_from() {
     // Import with explicit category + name + auto mode
     env.cmd()
         .args([
-            "ctf", "import",
+            "ctf",
+            "import",
             zip_path.to_str().unwrap(),
-            "--category", "misc",
-            "--name", "import-meta-test",
+            "--category",
+            "misc",
+            "--name",
+            "import-meta-test",
             "--auto",
         ])
         .assert()
@@ -748,7 +772,10 @@ fn test_ctf_import_creates_challenge_json_with_imported_from() {
         .collect();
     let event_dir = &event_dirs[0].path();
     let challenge_json = event_dir.join("misc/import-meta-test/.challenge.json");
-    assert!(challenge_json.exists(), ".challenge.json should be created by import");
+    assert!(
+        challenge_json.exists(),
+        ".challenge.json should be created by import"
+    );
 
     let content = fs::read_to_string(&challenge_json).unwrap();
     let meta: serde_json::Value = serde_json::from_str(&content).unwrap();
@@ -795,13 +822,17 @@ fn test_ctf_add_without_cd_no_cd_output() {
         .success();
 
     // Add without --cd should NOT print cd command
-    let output = env.cmd()
+    let output = env
+        .cmd()
         .args(["ctf", "add", "web/no-cd-test"])
         .output()
         .unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(!stdout.contains("cd '"), "Should not print cd without --cd flag");
+    assert!(
+        !stdout.contains("cd '"),
+        "Should not print cd without --cd flag"
+    );
 }
 
 #[test]
@@ -854,7 +885,10 @@ fn test_shelve_visible_in_help() {
     let output = cmd.args(["ctf", "--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("shelve"), "shelve should be visible in help");
+    assert!(
+        stdout.contains("shelve"),
+        "shelve should be visible in help"
+    );
 }
 
 #[test]
@@ -947,7 +981,11 @@ fn test_shelve_auto_unsolved() {
     let event_dirs: Vec<_> = fs::read_dir(&ctf_root)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_name().to_string_lossy().contains("ShelveUnsolvedCTF"))
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .contains("ShelveUnsolvedCTF")
+        })
         .collect();
     let event_dir = event_dirs[0].path();
     let challenge_dir = event_dir.join("crypto/unsolved-test");
@@ -1006,9 +1044,14 @@ fn test_shelve_with_note_flag() {
     cmd.env("XDG_DATA_HOME", env.path());
     cmd.env("HOME", env.path());
     cmd.args([
-        "ctf", "shelve", "flag{noted}",
-        "--note", "SQL injection in login form",
-        "--auto", "--no-move", "--no-commit",
+        "ctf",
+        "shelve",
+        "flag{noted}",
+        "--note",
+        "SQL injection in login form",
+        "--auto",
+        "--no-move",
+        "--no-commit",
     ]);
 
     cmd.assert().success();
@@ -1048,7 +1091,10 @@ fn test_completions_visible_in_help() {
     let output = cmd.args(["--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("completions"), "completions should be visible in help");
+    assert!(
+        stdout.contains("completions"),
+        "completions should be visible in help"
+    );
 }
 
 #[test]
@@ -1078,19 +1124,29 @@ fn test_experimental_labels_in_help() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Non-CTF commands should have [experimental] on their line
-    for cmd_name in ["clean", "watch", "audit", "search", "find", "grep", "stats", "undo"] {
-        let has_experimental = stdout.lines().any(|l| {
-            l.to_lowercase().contains(cmd_name) && l.contains("[experimental]")
-        });
-        assert!(has_experimental, "Command '{}' should be marked as [experimental] in help", cmd_name);
+    for cmd_name in [
+        "clean", "watch", "audit", "search", "find", "grep", "stats", "undo",
+    ] {
+        let has_experimental = stdout
+            .lines()
+            .any(|l| l.to_lowercase().contains(cmd_name) && l.contains("[experimental]"));
+        assert!(
+            has_experimental,
+            "Command '{}' should be marked as [experimental] in help",
+            cmd_name
+        );
     }
 
     // CTF, config, completions should NOT be experimental
     for cmd_name in ["ctf", "config", "completions"] {
-        let is_experimental = stdout.lines().any(|l| {
-            l.to_lowercase().contains(cmd_name) && l.contains("[experimental]")
-        });
-        assert!(!is_experimental, "Command '{}' should NOT be marked [experimental]", cmd_name);
+        let is_experimental = stdout
+            .lines()
+            .any(|l| l.to_lowercase().contains(cmd_name) && l.contains("[experimental]"));
+        assert!(
+            !is_experimental,
+            "Command '{}' should NOT be marked [experimental]",
+            cmd_name
+        );
     }
 }
 
@@ -1131,7 +1187,10 @@ fn test_ctf_info_shows_context() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "InfoTestCTF"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "InfoTestCTF"])
+        .assert()
+        .success();
 
     env.cmd()
         .args(["ctf", "info"])
@@ -1147,8 +1206,14 @@ fn test_ctf_writeup_generates_output() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "WriteupCTF"]).assert().success();
-    env.cmd().args(["ctf", "add", "web/writeup-test"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "WriteupCTF"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "add", "web/writeup-test"])
+        .assert()
+        .success();
 
     let ctf_root = env.path().join("1_Projects/CTFs");
     let event_dir = fs::read_dir(&ctf_root)
@@ -1183,7 +1248,10 @@ fn test_ctf_archive_moves_event() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "ArchiveTestCTF"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "ArchiveTestCTF"])
+        .assert()
+        .success();
 
     env.cmd()
         .args(["ctf", "archive", "ArchiveTestCTF"])
@@ -1206,8 +1274,14 @@ fn test_ctf_solve_legacy_writes_flag() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "SolveLegacyCTF"]).assert().success();
-    env.cmd().args(["ctf", "add", "misc/solve-test"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "SolveLegacyCTF"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "add", "misc/solve-test"])
+        .assert()
+        .success();
 
     let ctf_root = env.path().join("1_Projects/CTFs");
     let event_dir = fs::read_dir(&ctf_root)
@@ -1220,10 +1294,22 @@ fn test_ctf_solve_legacy_writes_flag() {
     let challenge_dir = event_dir.join("misc/solve-test");
 
     // Init git for the commit
-    let _ = std::process::Command::new("git").arg("init").current_dir(&event_dir).output();
-    let _ = std::process::Command::new("git").args(["config", "user.name", "Test"]).current_dir(&event_dir).output();
-    let _ = std::process::Command::new("git").args(["config", "user.email", "t@t.com"]).current_dir(&event_dir).output();
-    let _ = std::process::Command::new("git").args(["commit", "--allow-empty", "-m", "init"]).current_dir(&event_dir).output();
+    let _ = std::process::Command::new("git")
+        .arg("init")
+        .current_dir(&event_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.name", "Test"])
+        .current_dir(&event_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.email", "t@t.com"])
+        .current_dir(&event_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "--allow-empty", "-m", "init"])
+        .current_dir(&event_dir)
+        .output();
 
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
     cmd.current_dir(&challenge_dir);
@@ -1250,7 +1336,10 @@ fn test_ctf_info_after_event_deleted() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "DeletedEvent"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "DeletedEvent"])
+        .assert()
+        .success();
 
     // Find and delete the event directory
     let ctf_root = env.path().join("1_Projects/CTFs");
@@ -1263,10 +1352,7 @@ fn test_ctf_info_after_event_deleted() {
     fs::remove_dir_all(&event_dir).unwrap();
 
     // Info should fail gracefully, not panic
-    env.cmd()
-        .args(["ctf", "info"])
-        .assert()
-        .failure();
+    env.cmd().args(["ctf", "info"]).assert().failure();
 }
 
 #[test]
@@ -1276,7 +1362,10 @@ fn test_ctf_path_with_spaces() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "My Event 2026"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "My Event 2026"])
+        .assert()
+        .success();
 
     env.cmd()
         .args(["ctf", "path", "My Event"])
@@ -1299,9 +1388,13 @@ fn test_ctf_path_bare_output_no_decoration() {
     env.setup_workspace();
     env.create_config();
 
-    env.cmd().args(["ctf", "init", "BarePathTest"]).assert().success();
+    env.cmd()
+        .args(["ctf", "init", "BarePathTest"])
+        .assert()
+        .success();
 
-    let output = env.cmd()
+    let output = env
+        .cmd()
         .args(["ctf", "path", "BarePathTest"])
         .output()
         .unwrap();
@@ -1309,8 +1402,14 @@ fn test_ctf_path_bare_output_no_decoration() {
 
     // Bare path: no "cd", no quotes, no ANSI codes, just the path + newline
     assert!(!stdout.contains("cd "), "Bare path should not contain 'cd'");
-    assert!(!stdout.contains('\x1b'), "Bare path should not contain ANSI escape codes");
+    assert!(
+        !stdout.contains('\x1b'),
+        "Bare path should not contain ANSI escape codes"
+    );
     let trimmed = stdout.trim();
     assert!(!trimmed.is_empty(), "Path output should not be empty");
-    assert!(trimmed.contains("BarePathTest"), "Path should contain event name");
+    assert!(
+        trimmed.contains("BarePathTest"),
+        "Path should contain event name"
+    );
 }

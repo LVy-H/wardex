@@ -147,11 +147,12 @@ pub fn list_events(config: &Config) -> Result<ListEventsResult> {
                         let challenge_count = count_challenges(&sub_path);
 
                         // Check for metadata in subdirectory
-                        let (name, date, has_meta) = if let Some(meta) = CtfMeta::load(&sub_path).ok().flatten() {
-                            (meta.name, Some(meta.date), true)
-                        } else {
-                            (sub_name, None, false)
-                        };
+                        let (name, date, has_meta) =
+                            if let Some(meta) = CtfMeta::load(&sub_path).ok().flatten() {
+                                (meta.name, Some(meta.date), true)
+                            } else {
+                                (sub_name, None, false)
+                            };
 
                         events.push(CtfEventInfo {
                             name,
@@ -364,7 +365,10 @@ pub fn finish_event(
                     .defaults(&defaults)
                     .interact()?;
 
-                selections.into_iter().map(|i| candidates[i].clone()).collect()
+                selections
+                    .into_iter()
+                    .map(|i| candidates[i].clone())
+                    .collect()
             };
 
             if !dry_run && !to_delete.is_empty() {
@@ -447,7 +451,9 @@ pub fn check_expiries(config: &Config) -> Result<()> {
     let mut active = Vec::new();
 
     for e in events.events {
-        if !e.has_metadata { continue; }
+        if !e.has_metadata {
+            continue;
+        }
         if let Some(meta) = CtfMeta::load(&e.path).ok().flatten() {
             if let Some(et) = meta.end_time {
                 if now > et + grace_sec {
@@ -483,7 +489,10 @@ pub fn check_expiries(config: &Config) -> Result<()> {
     if !expired.is_empty() {
         println!("=== Expired Events (Past Grace Period) ===");
         for m in expired {
-            println!("- {} (Consider running `wardex ctf finish {}`)", m.name, m.name);
+            println!(
+                "- {} (Consider running `wardex ctf finish {}`)",
+                m.name, m.name
+            );
         }
     }
 

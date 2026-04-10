@@ -28,15 +28,15 @@ use std::path::Path;
 
 // Re-export all public items from submodules
 pub use archive::archive_event;
-pub use resolve::get_event_path;
 pub use challenge::{add_challenge, challenge_status, generate_writeup, solve_challenge};
-pub use shelve::shelve_challenge;
 pub use event::{
     check_active_expiry, check_expiries, create_event, find_event_root, finish_event,
     get_active_event_root, get_context_info, list_events, schedule_event, set_active_event,
     CreateEventResult, CtfEventInfo, ListEventsResult,
 };
 pub use import::import_challenge;
+pub use resolve::get_event_path;
+pub use shelve::shelve_challenge;
 
 /// CTF event metadata stored in .ctf_meta.json
 #[derive(Debug, Serialize, Deserialize, Clone)]

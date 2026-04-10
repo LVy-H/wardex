@@ -11,7 +11,6 @@ use std::path::PathBuf;
 
 use super::{ChallengeMetadata, ChallengeStatus, CtfMeta};
 
-
 #[allow(clippy::too_many_arguments)]
 pub fn shelve_challenge(
     config: &Config,
@@ -26,21 +25,20 @@ pub fn shelve_challenge(
     let current_dir = std::env::current_dir()?;
 
     // Load or create challenge metadata
-    let mut meta = ChallengeMetadata::load_or_migrate(&current_dir)?
-        .unwrap_or_else(|| {
-            let name = current_dir
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string();
-            let category = current_dir
-                .parent()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("misc")
-                .to_string();
-            ChallengeMetadata::new(&name, &category)
-        });
+    let mut meta = ChallengeMetadata::load_or_migrate(&current_dir)?.unwrap_or_else(|| {
+        let name = current_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let category = current_dir
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("misc")
+            .to_string();
+        ChallengeMetadata::new(&name, &category)
+    });
 
     // ── Step 1: Status ────────────────────────────────────────────────
     let (status, flag) = if let Some(f) = flag_arg {
@@ -145,7 +143,11 @@ pub fn shelve_challenge(
 
 /// Interactive status selection.
 fn prompt_status() -> Result<(ChallengeStatus, Option<String>)> {
-    let choices = &["I solved it", "Team solved it", "Unsolved — shelve for later"];
+    let choices = &[
+        "I solved it",
+        "Team solved it",
+        "Unsolved — shelve for later",
+    ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("What happened with this challenge?")
@@ -187,10 +189,7 @@ fn triage_files(challenge_dir: &PathBuf, meta: &ChallengeMetadata, config: &Conf
         let is_whitelisted = whitelist.iter().any(|pat| name.starts_with(pat.as_str()));
 
         // Also whitelist the imported original
-        let is_imported = meta
-            .imported_from
-            .as_ref()
-            .is_some_and(|imp| name == *imp);
+        let is_imported = meta.imported_from.as_ref().is_some_and(|imp| name == *imp);
 
         if is_whitelisted || is_imported {
             continue; // Always keep, don't show in triage
@@ -256,9 +255,8 @@ fn archive_challenge(
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "unknown".to_string());
 
-            let event_meta = CtfMeta::load(event_dir)?.unwrap_or_else(|| {
-                CtfMeta::new(&event_dir_name, None, None, None)
-            });
+            let event_meta = CtfMeta::load(event_dir)?
+                .unwrap_or_else(|| CtfMeta::new(&event_dir_name, None, None, None));
 
             let event_name = &event_dir_name;
             let year = event_meta.year.to_string();
@@ -279,7 +277,9 @@ fn archive_challenge(
                 let options = fs_extra::dir::CopyOptions::new();
                 fs_extra::dir::copy(
                     challenge_dir,
-                    target_dir.parent().context("Archive target path has no parent directory")?,
+                    target_dir
+                        .parent()
+                        .context("Archive target path has no parent directory")?,
                     &options,
                 )
                 .context("Failed to archive (cross-device move)")?;

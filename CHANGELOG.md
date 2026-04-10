@@ -57,6 +57,30 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.2.0-beta1] - 2026-04-10
+
+### Summary
+
+First beta release. The CTF workflow and shell integration are feature-complete.
+Breaking changes from this point only for critical bugs.
+
+### Changed
+
+| Change | Description |
+|--------|-------------|
+| Version policy | Beta: feature-complete, breaking changes only for critical bugs |
+| CI | GitHub Actions workflow: fmt, clippy, test on every push and PR |
+| CTF lifecycle status | Promoted from "Implemented" to "Stable" |
+| Nix flake | Version updated, overlay added, HM module gets shell completion support |
+
+### Migration Guide
+
+#### From 0.2.0-alpha8
+
+**No breaking changes.** This release formalizes the beta stability contract.
+
+Nix Home Manager users: shell completions now auto-install. Update your flake input and rebuild.
+
 ## [0.2.0-alpha8] - 2026-04-10
 
 ### Summary

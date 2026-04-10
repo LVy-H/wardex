@@ -45,8 +45,7 @@ fn resolve_ctf_root() -> Option<PathBuf> {
                         if let Some(val) = trimmed.strip_prefix("workspace:") {
                             let val = val.trim().trim_matches('"').trim_matches('\'');
                             if !val.is_empty() {
-                                let ctf_root =
-                                    PathBuf::from(val).join("1_Projects").join("CTFs");
+                                let ctf_root = PathBuf::from(val).join("1_Projects").join("CTFs");
                                 if ctf_root.exists() {
                                     return Some(ctf_root);
                                 }

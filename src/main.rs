@@ -197,12 +197,18 @@ fn parse_fuzzy_time(time_str: &str) -> Option<i64> {
 
     // Try YYYY-MM-DD HH:MM
     if let Ok(dt) = NaiveDateTime::parse_from_str(time_str, "%Y-%m-%d %H:%M") {
-        return Local.from_local_datetime(&dt).single().map(|d| d.timestamp());
+        return Local
+            .from_local_datetime(&dt)
+            .single()
+            .map(|d| d.timestamp());
     }
     // Try YYYY-MM-DD
     if let Ok(d) = NaiveDate::parse_from_str(time_str, "%Y-%m-%d") {
         let dt = d.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-        return Local.from_local_datetime(&dt).single().map(|d| d.timestamp());
+        return Local
+            .from_local_datetime(&dt)
+            .single()
+            .map(|d| d.timestamp());
     }
 
     None
@@ -358,140 +364,193 @@ fn main() -> Result<()> {
                 ctf::check_active_expiry(&config);
             }
             match command {
-            CtfCommands::Init { name, date, start, end } => {
-                let start_ts = start.as_deref().and_then(parse_fuzzy_time);
-                let end_ts = end.as_deref().and_then(parse_fuzzy_time);
+                CtfCommands::Init {
+                    name,
+                    date,
+                    start,
+                    end,
+                } => {
+                    let start_ts = start.as_deref().and_then(parse_fuzzy_time);
+                    let end_ts = end.as_deref().and_then(parse_fuzzy_time);
 
-                if let Some(s) = start {
-                    if start_ts.is_none() { log::warn!("Failed to parse start time '{}'", s); }
+                    if let Some(s) = start {
+                        if start_ts.is_none() {
+                            log::warn!("Failed to parse start time '{}'", s);
+                        }
+                    }
+                    if let Some(e) = end {
+                        if end_ts.is_none() {
+                            log::warn!("Failed to parse end time '{}'", e);
+                        }
+                    }
+
+                    let result = ctf::create_event(&config, name, date.clone(), start_ts, end_ts)?;
+
+                    if result.already_exists {
+                        error!("Event directory already exists: {:?}", result.event_dir);
+                    } else {
+                        info!("✓ Initialized: {:?}", result.event_dir);
+                        info!("  + Categories: {}", result.categories_created.join(", "));
+                        info!("  + File: notes.md");
+                        info!("  + Metadata: .ctf_meta.json");
+                    }
                 }
-                if let Some(e) = end {
-                    if end_ts.is_none() { log::warn!("Failed to parse end time '{}'", e); }
-                }
+                CtfCommands::List => {
+                    let result = ctf::list_events(&config)?;
 
-                let result = ctf::create_event(&config, name, date.clone(), start_ts, end_ts)?;
+                    if result.ctf_root_missing {
+                        warn!("No CTF directory found.");
+                        return Ok(());
+                    }
 
-                if result.already_exists {
-                    error!("Event directory already exists: {:?}", result.event_dir);
-                } else {
-                    info!("✓ Initialized: {:?}", result.event_dir);
-                    info!("  + Categories: {}", result.categories_created.join(", "));
-                    info!("  + File: notes.md");
-                    info!("  + Metadata: .ctf_meta.json");
-                }
-            }
-            CtfCommands::List => {
-                let result = ctf::list_events(&config)?;
+                    if result.events.is_empty() {
+                        warn!("No CTF events found.");
+                        return Ok(());
+                    }
 
-                if result.ctf_root_missing {
-                    warn!("No CTF directory found.");
-                    return Ok(());
-                }
-
-                if result.events.is_empty() {
-                    warn!("No CTF events found.");
-                    return Ok(());
-                }
-
-                println!(
-                    "{:<30} {:<6} {:<12} {:<10}",
-                    "Event", "Year", "Date", "Challenges"
-                );
-                println!("{}", "-".repeat(60));
-
-                for event in &result.events {
-                    let date_str = event.date.as_deref().unwrap_or("-");
-                    let meta_indicator = if event.has_metadata { "" } else { "*" };
                     println!(
-                        "{:<30} {:<6} {:<12} {:<10}{}",
-                        event.name, event.year, date_str, event.challenge_count, meta_indicator
+                        "{:<30} {:<6} {:<12} {:<10}",
+                        "Event", "Year", "Date", "Challenges"
                     );
-                }
+                    println!("{}", "-".repeat(60));
 
-                if result.events.iter().any(|e| !e.has_metadata) {
-                    log::debug!("* Events without metadata file");
+                    for event in &result.events {
+                        let date_str = event.date.as_deref().unwrap_or("-");
+                        let meta_indicator = if event.has_metadata { "" } else { "*" };
+                        println!(
+                            "{:<30} {:<6} {:<12} {:<10}{}",
+                            event.name, event.year, date_str, event.challenge_count, meta_indicator
+                        );
+                    }
+
+                    if result.events.iter().any(|e| !e.has_metadata) {
+                        log::debug!("* Events without metadata file");
+                    }
                 }
-            }
-            CtfCommands::Import {
-                file,
-                category,
-                name,
-                auto,
-            } => {
-                ctf::import_challenge(&config, file, category.clone(), name.clone(), *auto)?;
-            }
-            CtfCommands::Solve { flag, create, desc, no_archive, no_commit } => {
-                ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
-            }
-            CtfCommands::Add { path, cd } => {
-                let challenge_dir = ctf::add_challenge(&config, path)?;
-                if *cd {
+                CtfCommands::Import {
+                    file,
+                    category,
+                    name,
+                    auto,
+                } => {
+                    ctf::import_challenge(&config, file, category.clone(), name.clone(), *auto)?;
+                }
+                CtfCommands::Solve {
+                    flag,
+                    create,
+                    desc,
+                    no_archive,
+                    no_commit,
+                } => {
+                    ctf::solve_challenge(
+                        &config,
+                        flag,
+                        create.clone(),
+                        desc.clone(),
+                        *no_archive,
+                        *no_commit,
+                    )?;
+                }
+                CtfCommands::Add { path, cd } => {
+                    let challenge_dir = ctf::add_challenge(&config, path)?;
+                    if *cd {
+                        println!("{}", shell_quote_cd(&challenge_dir));
+                    }
+                }
+                CtfCommands::Writeup => {
+                    ctf::generate_writeup(&config)?;
+                }
+                CtfCommands::Archive { name } => {
+                    ctf::archive_event(&config, name)?;
+                }
+                CtfCommands::Path {
+                    event,
+                    challenge,
+                    cd,
+                } => {
+                    let mut event = event.clone();
+                    let mut challenge = challenge.clone();
+
+                    if challenge.is_none() && event.as_ref().is_some_and(|e| e.contains('/')) {
+                        challenge = event.clone();
+                        event = None;
+                    }
+
+                    let path =
+                        ctf::get_event_path(&config, event.as_deref(), challenge.as_deref())?;
+                    if *cd {
+                        println!("{}", shell_quote_cd(&path));
+                    } else {
+                        println!("{}", path.display());
+                    }
+                }
+                CtfCommands::Info => {
+                    ctf::get_context_info(&config)?;
+                }
+                CtfCommands::Use { event } => {
+                    ctf::set_active_event(&config, event)?;
+                }
+                CtfCommands::Schedule { event, start, end } => {
+                    let start_ts = start.as_deref().and_then(parse_fuzzy_time);
+                    let end_ts = end.as_deref().and_then(parse_fuzzy_time);
+                    ctf::schedule_event(&config, event.as_deref(), start_ts, end_ts)?;
+                }
+                CtfCommands::Finish {
+                    event,
+                    no_archive,
+                    force,
+                    dry_run,
+                } => {
+                    ctf::finish_event(&config, event.as_deref(), *no_archive, *force, *dry_run)?;
+                }
+                CtfCommands::Check => {
+                    ctf::check_expiries(&config)?;
+                }
+                CtfCommands::Status => {
+                    ctf::challenge_status(&config)?;
+                }
+                CtfCommands::Shelve {
+                    flag,
+                    note,
+                    no_clean,
+                    r#move,
+                    no_move,
+                    no_commit,
+                    auto,
+                } => {
+                    ctf::shelve_challenge(
+                        &config,
+                        flag.clone(),
+                        note.clone(),
+                        *no_clean,
+                        *r#move,
+                        *no_move,
+                        *no_commit,
+                        *auto,
+                    )?;
+                }
+                CtfCommands::Work { path } => {
+                    let challenge_dir = ctf::add_challenge(&config, path)?;
                     println!("{}", shell_quote_cd(&challenge_dir));
                 }
-            }
-            CtfCommands::Writeup => {
-                ctf::generate_writeup(&config)?;
-            }
-            CtfCommands::Archive { name } => {
-                ctf::archive_event(&config, name)?;
-            }
-            CtfCommands::Path { event, challenge, cd } => {
-                let mut event = event.clone();
-                let mut challenge = challenge.clone();
-
-                if challenge.is_none() && event.as_ref().is_some_and(|e| e.contains('/')) {
-                    challenge = event.clone();
-                    event = None;
+                CtfCommands::Done {
+                    flag,
+                    create,
+                    desc,
+                    no_archive,
+                    no_commit,
+                } => {
+                    ctf::solve_challenge(
+                        &config,
+                        flag,
+                        create.clone(),
+                        desc.clone(),
+                        *no_archive,
+                        *no_commit,
+                    )?;
                 }
-
-                let path = ctf::get_event_path(&config, event.as_deref(), challenge.as_deref())?;
-                if *cd {
-                    println!("{}", shell_quote_cd(&path));
-                } else {
-                    println!("{}", path.display());
-                }
-            }
-            CtfCommands::Info => {
-                ctf::get_context_info(&config)?;
-            }
-            CtfCommands::Use { event } => {
-                ctf::set_active_event(&config, event)?;
-            }
-            CtfCommands::Schedule { event, start, end } => {
-                let start_ts = start.as_deref().and_then(parse_fuzzy_time);
-                let end_ts = end.as_deref().and_then(parse_fuzzy_time);
-                ctf::schedule_event(&config, event.as_deref(), start_ts, end_ts)?;
-            }
-            CtfCommands::Finish { event, no_archive, force, dry_run } => {
-                ctf::finish_event(&config, event.as_deref(), *no_archive, *force, *dry_run)?;
-            }
-            CtfCommands::Check => {
-                ctf::check_expiries(&config)?;
-            }
-            CtfCommands::Status => {
-                ctf::challenge_status(&config)?;
-            }
-            CtfCommands::Shelve { flag, note, no_clean, r#move, no_move, no_commit, auto } => {
-                ctf::shelve_challenge(
-                    &config,
-                    flag.clone(),
-                    note.clone(),
-                    *no_clean,
-                    *r#move,
-                    *no_move,
-                    *no_commit,
-                    *auto,
-                )?;
-            }
-            CtfCommands::Work { path } => {
-                let challenge_dir = ctf::add_challenge(&config, path)?;
-                println!("{}", shell_quote_cd(&challenge_dir));
-            }
-            CtfCommands::Done { flag, create, desc, no_archive, no_commit } => {
-                ctf::solve_challenge(&config, flag, create.clone(), desc.clone(), *no_archive, *no_commit)?;
             }
         }
-        },
         Commands::Audit => {
             info!("Auditing workspace...");
             let report = auditor::audit_workspace(&config)?;
@@ -534,7 +593,9 @@ fn main() -> Result<()> {
             }
             #[cfg(not(feature = "tui"))]
             {
-                eprintln!("TUI dashboard is not enabled. Rebuild with: cargo install --features tui");
+                eprintln!(
+                    "TUI dashboard is not enabled. Rebuild with: cargo install --features tui"
+                );
             }
         }
         Commands::Info { path } => {
