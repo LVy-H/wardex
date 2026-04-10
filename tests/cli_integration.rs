@@ -1504,6 +1504,57 @@ fn test_ctf_status_shows_summary() {
 }
 
 #[test]
+#[serial_test::serial]
+fn test_ctf_use_dash_switches_back() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "FirstEvent"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "init", "SecondEvent"])
+        .assert()
+        .success();
+
+    // Currently on SecondEvent, switch back
+    env.cmd().args(["ctf", "use", "-"]).assert().success();
+
+    // Should now be on FirstEvent
+    env.cmd()
+        .args(["ctf", "info"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("FirstEvent"));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_recent_lists_events() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "RecentA"])
+        .assert()
+        .success();
+    env.cmd()
+        .args(["ctf", "init", "RecentB"])
+        .assert()
+        .success();
+
+    env.cmd()
+        .args(["ctf", "recent"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("RecentB"))
+        .stdout(predicate::str::contains("RecentA"));
+}
+
+#[test]
 fn test_config_validate_warns_missing_workspace() {
     let env = TestEnv::new();
     let nonexistent = format!("{}/nonexistent_workspace", env.path().display());

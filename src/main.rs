@@ -147,6 +147,8 @@ enum CtfCommands {
     },
     /// Check for expired or soon-to-expire events
     Check,
+    /// List recently used CTF events
+    Recent,
     /// Detailed status of challenges (Active vs Solved)
     Status {
         /// Output format: table (default) or json
@@ -370,7 +372,7 @@ fn main() -> Result<()> {
             output::display_clean_report(&config, &report);
         }
         Commands::Ctf { command } => {
-            if !matches!(command, CtfCommands::Check | CtfCommands::List) {
+            if !matches!(command, CtfCommands::Check | CtfCommands::List | CtfCommands::Recent) {
                 ctf::check_active_expiry(&config);
             }
             match command {
@@ -498,7 +500,22 @@ fn main() -> Result<()> {
                     ctf::get_context_info(&config)?;
                 }
                 CtfCommands::Use { event } => {
-                    ctf::set_active_event(&config, event)?;
+                    if event == "-" {
+                        let mut state = wardex::core::state::AppState::load();
+                        if let Some(prev) = state.get_previous_event() {
+                            let name = prev
+                                .file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| "unknown".to_string());
+                            state.set_event(prev.clone())?;
+                            println!("Switched back to: {}", name);
+                            println!("Context set to: {:?}", prev);
+                        } else {
+                            anyhow::bail!("No previous event to switch to.");
+                        }
+                    } else {
+                        ctf::set_active_event(&config, event)?;
+                    }
                 }
                 CtfCommands::Schedule { event, start, end } => {
                     let start_ts = start.as_deref().and_then(parse_fuzzy_time);
@@ -515,6 +532,32 @@ fn main() -> Result<()> {
                 }
                 CtfCommands::Check => {
                     ctf::check_expiries(&config)?;
+                }
+                CtfCommands::Recent => {
+                    let state = wardex::core::state::AppState::load();
+                    if state.recent_events.is_empty() {
+                        println!("No recent events.");
+                    } else {
+                        println!("Recent CTF events:");
+                        for (i, event) in state.recent_events.iter().enumerate() {
+                            let current =
+                                state.current_event_path.as_ref() == Some(&event.path);
+                            let marker = if current { " (active)" } else { "" };
+                            let exists = if event.path.exists() {
+                                ""
+                            } else {
+                                " [deleted]"
+                            };
+                            println!(
+                                "  {}. {}{}{} — {}",
+                                i + 1,
+                                event.name,
+                                marker,
+                                exists,
+                                event.accessed_at
+                            );
+                        }
+                    }
                 }
                 CtfCommands::Status { format } => {
                     ctf::challenge_status(&config, format)?;
