@@ -1413,3 +1413,34 @@ fn test_ctf_path_bare_output_no_decoration() {
         "Path should contain event name"
     );
 }
+
+// ── T003: Config validation ──────────────────────────────────────────
+
+#[test]
+fn test_config_validate_command() {
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["config", "validate"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("valid"));
+}
+
+#[test]
+fn test_config_validate_warns_missing_workspace() {
+    let env = TestEnv::new();
+    let nonexistent = format!("{}/nonexistent_workspace", env.path().display());
+    let config_content = format!("paths:\n  workspace: {}", nonexistent);
+    fs::write(env.path().join("config.yaml"), config_content).unwrap();
+
+    // Override WX_PATHS_WORKSPACE to the nonexistent path too (env overrides config)
+    let mut cmd = env.cmd();
+    cmd.env("WX_PATHS_WORKSPACE", &nonexistent);
+    cmd.args(["config", "validate"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("does not exist"));
+}

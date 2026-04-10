@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use config::{Config as ConfigBuilder, Environment, File, FileFormat};
+use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -255,6 +256,56 @@ impl Config {
             .ctf_root
             .clone()
             .unwrap_or_else(|| self.resolve_path("projects").join("CTFs"))
+    }
+
+    /// Validate configuration values. Returns warnings for non-fatal issues.
+    pub fn validate(&self) -> Result<Vec<String>> {
+        let mut warnings = Vec::new();
+
+        if !self.paths.workspace.exists() {
+            warnings.push(format!(
+                "Workspace path does not exist: {:?}. It will be created on first use.",
+                self.paths.workspace
+            ));
+        }
+
+        for cat in &self.ctf.default_categories {
+            if !cat
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+            {
+                anyhow::bail!(
+                    "Invalid CTF category name: '{}'. Use alphanumeric characters, hyphens, or underscores.",
+                    cat
+                );
+            }
+        }
+
+        for rule in &self.rules.clean {
+            Regex::new(&rule.pattern).with_context(|| {
+                format!(
+                    "Invalid regex in clean rule: '{}'. Check your config file.",
+                    rule.pattern
+                )
+            })?;
+        }
+
+        for pat in &self.ctf.shelve.blacklist {
+            if pat.trim().is_empty() {
+                warnings.push(
+                    "Empty pattern in ctf.shelve.blacklist — will be ignored.".to_string(),
+                );
+            }
+        }
+        for pat in &self.ctf.shelve.whitelist {
+            if pat.trim().is_empty() {
+                warnings.push(
+                    "Empty pattern in ctf.shelve.whitelist — will be ignored.".to_string(),
+                );
+            }
+        }
+
+        Ok(warnings)
     }
 }
 

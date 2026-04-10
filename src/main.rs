@@ -45,6 +45,8 @@ enum ConfigCommands {
         )]
         folder: String,
     },
+    /// Validate current configuration
+    Validate,
 }
 
 #[derive(Subcommand)]
@@ -709,6 +711,17 @@ fn handle_config_command(
             }
 
             println!("{}", path.display());
+        }
+        ConfigCommands::Validate => {
+            let warnings = config.validate()?;
+            if warnings.is_empty() {
+                println!("✓ Configuration is valid.");
+            } else {
+                println!("Configuration valid with warnings:");
+                for w in &warnings {
+                    println!("  ⚠ {}", w);
+                }
+            }
         }
     }
 
