@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo_bin_cmd, Command};
 use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
@@ -14,7 +14,7 @@ impl TestEnv {
     }
 
     fn cmd(&self) -> Command {
-        let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+        let mut cmd = cargo_bin_cmd!();
         cmd.current_dir(self.temp_dir.path());
         cmd.env("WX_PATHS_WORKSPACE", self.temp_dir.path());
         cmd.env("XDG_CONFIG_HOME", self.temp_dir.path());
@@ -74,7 +74,7 @@ ctf:
 
 #[test]
 fn test_cli_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.arg("--help")
         .assert()
         .success()
@@ -83,7 +83,7 @@ fn test_cli_help() {
 
 #[test]
 fn test_cli_version() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.arg("--version")
         .assert()
         .success()
@@ -858,7 +858,7 @@ fn test_ctf_work_still_works_as_alias() {
 
 #[test]
 fn test_work_hidden_from_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     let output = cmd.args(["ctf", "--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -870,7 +870,7 @@ fn test_work_hidden_from_help() {
 
 #[test]
 fn test_done_hidden_from_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     let output = cmd.args(["ctf", "--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -881,7 +881,7 @@ fn test_done_hidden_from_help() {
 
 #[test]
 fn test_shelve_visible_in_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     let output = cmd.args(["ctf", "--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -937,7 +937,7 @@ fn test_shelve_with_flag_auto_mode() {
         .ok();
 
     // Shelve with flag in auto mode (no prompts)
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.current_dir(&challenge_dir);
     cmd.env("WX_PATHS_WORKSPACE", env.path());
     cmd.env("XDG_CONFIG_HOME", env.path());
@@ -991,7 +991,7 @@ fn test_shelve_auto_unsolved() {
     let challenge_dir = event_dir.join("crypto/unsolved-test");
 
     // Shelve without flag in auto mode → unsolved
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.current_dir(&challenge_dir);
     cmd.env("WX_PATHS_WORKSPACE", env.path());
     cmd.env("XDG_CONFIG_HOME", env.path());
@@ -1037,7 +1037,7 @@ fn test_shelve_with_note_flag() {
     let event_dir = event_dirs[0].path();
     let challenge_dir = event_dir.join("web/note-test");
 
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.current_dir(&challenge_dir);
     cmd.env("WX_PATHS_WORKSPACE", env.path());
     cmd.env("XDG_CONFIG_HOME", env.path());
@@ -1067,7 +1067,7 @@ fn test_shelve_with_note_flag() {
 
 #[test]
 fn test_completions_bash() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["completions", "bash"])
         .assert()
         .success()
@@ -1077,7 +1077,7 @@ fn test_completions_bash() {
 
 #[test]
 fn test_completions_zsh() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["completions", "zsh"])
         .assert()
         .success()
@@ -1087,7 +1087,7 @@ fn test_completions_zsh() {
 
 #[test]
 fn test_completions_visible_in_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     let output = cmd.args(["--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -1119,7 +1119,7 @@ fn test_ctf_add_cd_escapes_single_quotes() {
 
 #[test]
 fn test_experimental_labels_in_help() {
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     let output = cmd.args(["--help"]).output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -1357,7 +1357,7 @@ fn test_ctf_solve_legacy_writes_flag() {
         .current_dir(&event_dir)
         .output();
 
-    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.current_dir(&challenge_dir);
     cmd.env("WX_PATHS_WORKSPACE", env.path());
     cmd.env("XDG_CONFIG_HOME", env.path());
