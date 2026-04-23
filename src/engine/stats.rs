@@ -117,7 +117,7 @@ pub fn print_stats(stats: &WorkspaceStats) {
 
     println!("\n📁 Top File Types");
     let mut sorted_types: Vec<_> = stats.file_types.iter().collect();
-    sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+    sorted_types.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
 
     for (ext, count) in sorted_types.iter().take(5) {
         println!("  .{:<4} : {}", ext, count);
