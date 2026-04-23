@@ -5,15 +5,19 @@ Originally drafted at 0.2.0-beta1. Refreshed at 0.3.0-alpha3 — see
 
 ## Version Roadmap
 
+Per the versioning policy in `CHANGELOG.md`: each minor version goes through
+alpha (breaking changes expected) → beta (feature-complete, bug fixes only)
+→ `0.x.0` stable release.
+
 | Version | Theme | Status |
 |---------|-------|--------|
-| **0.2.x** | Beta — CTF + shell reliability | **Shipped** |
-| **0.3.x** | CTF polish — writeup, config validation, status enrichment | **Shipped (alpha1–alpha3)** |
-| **0.4.x** | Quality & context buffer — field feedback, `ContextResolver` refactor, lifecycle test hardening | **Active** |
+| **0.2.x** | Beta — CTF + shell reliability | **Released (0.2.0)** |
+| **0.3.x** | CTF polish — writeup, config validation, status enrichment | **Active — themes implemented across alpha1–alpha3; beta + 0.3.0 pending** |
+| **0.4.x** | Post-0.3.0 buffer — `ContextResolver` refactor, non-CTF enhancements | Planned |
 | **0.5.x** | Non-CTF commands active support, team features | Planned |
 | **0.6+** | Expansion — web UI, cross-platform, advanced features | Future |
 
-## 0.3.x: CTF Workflow Polish (Shipped)
+## 0.3.x: CTF Workflow Polish (Active)
 
 ### Writeup Generation Improvements
 
@@ -60,26 +64,57 @@ Too early for a full plugin system. Instead:
 - Proof of concept: auto-run `checksec` for pwn challenges via config flag
 - Design RFC for 0.4+ if demand exists
 
-## 0.4.x: Quality & Context Buffer (Active)
+## 0.3.x: Stabilization Path (alpha4 → beta → 0.3.0)
 
-The original plan called this a "buffer release" with no pre-assigned theme.
-After the alpha3 cycle, that slot is now partially defined by real debt
-surfaced from field feedback:
+The strategic themes above are implemented across alpha1–alpha3. The
+remaining work to reach stable 0.3.0 is test depth and operational hygiene,
+not new features. Per the versioning policy, alphas may still make breaking
+changes; betas are feature-complete bug-fix only.
 
-### Confirmed workstreams
+### alpha4 (next): test-depth additions
+
+Pure additive work — no breaking changes, no new features.
+
+- **Lifecycle test hardening (T017 phase 2)**: alpha3 pinned `archive`/`finish`
+  basics. Still open: `finish` end-time-metadata, `schedule`, `check`,
+  `recent`, the `finish` error paths when the event has no git repo / has
+  unsolved challenges.
+- **Operational hygiene (T021)**: devshell-vs-CI toolchain drift caused 4
+  consecutive red CI runs during alpha3. Either pin CI to a specific rust
+  version or keep the `flake.lock` `rust-overlay` current; pick one and
+  document.
+
+### beta1: feature freeze
+
+Cut when:
+
+- Every CTF command has ≥3 integration tests.
+- CI has gone ≥10 consecutive pushes green without toolchain drift.
+- `docs/ctf-lifecycle.md` and `docs/shell-output-contracts.md` match the
+  current code exactly.
+
+No new features accepted once the beta branch is cut.
+
+### 0.3.0: stable release
+
+Cut when beta1 has soaked for one field-use cycle (a real CTF event or
+equivalent) with zero regression reports.
+
+## 0.4.x: Post-0.3.0 Buffer (Future)
+
+Deferred to after 0.3.0 stable. The original "buffer release" slot is now
+earmarked for the `ContextResolver` refactor (T012) — an internal cleanup
+that warrants its own alpha gate because it touches every command's
+resolution code and deserves clear blast-radius isolation from the 0.3.0
+stabilization.
+
+### Confirmed early workstream
 
 - **`ContextResolver` refactor (T012)**: current context resolution
   (`local cwd > global state > latest event`) is reimplemented per-command.
   Every alpha has found a fresh bug in this area (alpha2 `~/` handling, alpha2
   silent-fallback in challenge completer, alpha3 zsh user-name fallback on
   bare `~`). Collapse into one resolver + unit tests.
-- **Lifecycle test hardening (T017 phase 2)**: alpha3 pinned `archive`/`finish`
-  basics. Still open: `finish` end-time-metadata, `schedule`, `check`,
-  `recent`, the `finish` error paths when the event has no git repo / has
-  unsolved challenges.
-- **Operational hygiene**: devshell-vs-CI toolchain drift bit us in alpha3
-  (4 consecutive red CI runs). Either pin CI to a specific rust version or
-  keep the flake.lock rust-overlay pin current; pick one and document.
 
 ### Buffer slots (if field feedback warrants)
 

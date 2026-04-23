@@ -58,11 +58,13 @@ Goal: make Wardex feel native in the terminal instead of merely callable from it
 - ~~Bash and Zsh users can install completion without reverse-engineering the repo.~~
 - Shell wrappers no longer feel like fragile add-ons.
 
-## Phase 3: CTF Workflow Polish (Complete — 0.3.0-alpha1 through alpha3)
+## Phase 3: CTF Workflow Polish (Features implemented — 0.3.0-alpha1 through alpha3)
 
 Goal: improve depth and speed for repeat CTF usage once the shell layer is solid.
 
-Status: **all strategic deliverables shipped.** See
+Status: **features implemented across alpha1–alpha3. Stabilization to 0.3.0
+still pending** — need alpha4 (test depth), beta1 (feature freeze), and a
+field-soak cycle before the stable 0.3.0 release. See
 [`evaluation-alpha3.md`](evaluation-alpha3.md) for the detailed per-commit map.
 
 ### Shipped deliverables
@@ -91,36 +93,50 @@ Status: **all strategic deliverables shipped.** See
   patching source.
 - The CTF experience is a cohesive product.
 
-## Phase 3.5: Quality & Context Buffer (Active — 0.4.x)
+## Phase 3 Stabilization: 0.3.0-alpha4 → beta1 → 0.3.0 (Active)
 
 Not in the original plan. Added after the alpha3 retrospective surfaced a
-pattern: every alpha cycle has turned up a fresh bug in the shared
-context-resolution code path, and the lifecycle commands with destructive
-semantics (`finish`, `archive`) have thinner test coverage than the
-interactive commands.
+pattern: destructive lifecycle commands (`finish`, `archive`) have thinner
+coverage than interactive ones, and CI has been fragile to toolchain drift.
+This phase closes those gaps before cutting 0.3.0 stable.
 
-### Deliverables
+### alpha4 Deliverables (next up)
 
-- **T012 — `ContextResolver` refactor**: one resolver, one precedence chain
-  (`local CWD > global state > explicit arg > latest event`), one set of unit
-  tests. Today each command reimplements this locally.
+Pure additive / hygiene. No API changes.
+
 - **T017 phase 2 — lifecycle regression depth**: cover `finish` end-time
   metadata; `schedule`, `check`, `recent` beyond smoke; `finish` without git
   repo; `finish` on unsolved events.
-- **Operational hygiene**: pin the devshell-vs-CI toolchain to avoid the
-  fmt/clippy drift that caused 4 consecutive red CI runs in alpha3. Either
-  pin CI to a specific rust version (`dtolnay/rust-toolchain@1.95.0`) or
-  require `flake.lock` rust-overlay stay current and enforce via CI.
+- **T021 — operational hygiene**: pin the devshell-vs-CI toolchain to avoid
+  the fmt/clippy drift that caused 4 consecutive red CI runs in alpha3.
+  Either pin CI to a specific rust version (`dtolnay/rust-toolchain@1.95.0`)
+  or require `flake.lock` rust-overlay stay current and enforce via CI.
+- **T013 — shell wrapper examples**: short README pass adding Bash/Zsh
+  wrapper examples for `ctf path --cd` and `ctf add --cd`. Already
+  escape-hardened in `3d2eb79`; this is documentation only.
 
-### Exit Criteria
+### beta1 Cut Criteria
 
-- All CTF lifecycle commands have ≥3 regression tests each.
-- Context-resolution code has a single owner (one module, unit-tested).
-- CI goes 10 consecutive pushes green without toolchain-drift breakage.
+- Every CTF command has ≥3 integration tests.
+- CI goes ≥10 consecutive pushes green without toolchain-drift breakage.
+- `docs/ctf-lifecycle.md` + `docs/shell-output-contracts.md` match the
+  current code exactly.
+- Docs pass: `docs/PREVIEW.md`, README, CHANGELOG consistent with shipped
+  commands.
 
-## Phase 4: Broader Expansion (Future)
+### 0.3.0 Release Criteria
 
-Goal: revisit non-CTF expansion only after the quality-buffer work lands.
+- beta1 has soaked for one field-use cycle (a real CTF event or equivalent).
+- No open regression reports against beta1.
+- CHANGELOG entry for 0.3.0 finalized.
+
+**T012 (`ContextResolver` refactor) is deliberately deferred to 0.4.x** —
+it's an internal refactor that touches every command's resolution code,
+which is too large a blast-radius for beta-cycle changes.
+
+## Phase 4: Post-0.3.0 Buffer + Broader Expansion (Future)
+
+Goal: land the `ContextResolver` refactor first, then revisit non-CTF expansion.
 
 ### Candidate Epics
 
@@ -137,8 +153,9 @@ Goal: revisit non-CTF expansion only after the quality-buffer work lands.
 
 ## Recommended Release Cadence
 
-- `0.2.x`: Shelve system, CTF contract, lifecycle hardening, and shell completion (shipped)
-- `0.3.x`: CTF workflow polish — writeup, status, multi-event, path completion (shipped)
-- `0.4.x`: Quality buffer — context resolver refactor + lifecycle test depth (active)
-- `0.5.x`: selective expansion beyond the flagship CTF path
+- `0.2.x`: Shelve system, CTF contract, lifecycle hardening, shell completion (**released 0.2.0**)
+- `0.3.x`: CTF workflow polish — writeup, status, multi-event, path completion
+  (**features implemented in alpha1–alpha3; stabilizing to 0.3.0 via alpha4 → beta1 → release**)
+- `0.4.x`: Context-resolver refactor + selective non-CTF expansion (future)
+- `0.5.x`: broader expansion beyond the flagship CTF path
 - `0.6.x+`: advanced capabilities after core stabilization

@@ -104,7 +104,7 @@ Deliverables shipped:
 
 ## Milestone 3: Context And Navigation Hardening
 
-### T012: Make Context Resolution Predictable (IN PROGRESS — target 0.4.x)
+### T012: Make Context Resolution Predictable (DEFERRED to 0.4.x)
 
 Goal: ensure shell wrappers and completions can rely on Wardex behavior.
 
@@ -112,6 +112,10 @@ Status: partially addressed alpha-by-alpha as bugs surface (alpha2 tilde
 handling, alpha2 completer silent-fallback removal, alpha3 `~<TAB>` fix).
 Each fix is correct but local — the broader refactor into a single
 `ContextResolver` module is still outstanding.
+
+**Deferred to 0.4.x**: this refactor touches every command's resolution
+code, too large a blast-radius for the 0.3.x beta cycle. Closing it out
+becomes the opening workstream of 0.4.x after 0.3.0 releases.
 
 Deliverables:
 
@@ -196,7 +200,7 @@ Depends on:
 
 ## Milestone 5: Tests And Release Readiness
 
-### T017: Expand CTF Integration Coverage (PHASE 1 DONE — PHASE 2 OPEN, target 0.4.x)
+### T017: Expand CTF Integration Coverage (PHASE 1 DONE — PHASE 2 OPEN, target 0.3.0-alpha4)
 
 Goal: protect the flagship workflow with regression tests.
 
@@ -222,7 +226,7 @@ Depends on:
 
 - T003 (DONE)
 - T005 (DONE)
-- T012 (in progress — supplies the context-resolution test seam)
+- T012 (deferred — its seam is a 0.4.x concern)
 - T013
 
 ### T018: Add Completion Verification
@@ -260,10 +264,19 @@ Follow-up (folded into 0.4.x operational-hygiene workstream, not a new task):
 - pin the CI rust toolchain or keep `flake.lock` `rust-overlay` current to
   prevent devshell drift.
 
-## Milestone 6: 0.4.x Quality & Context Buffer (Active)
+## Milestone 6: 0.3.x Stabilization to 0.3.0 (Active)
 
 Added at the 0.3.0-alpha3 retrospective. See
 [`evaluation-alpha3.md`](evaluation-alpha3.md) for the rationale.
+
+Path to stable release: **alpha3 → alpha4 → beta1 → 0.3.0**. Alpha4 does
+test-depth additions and toolchain pinning. Beta1 is cut when every CTF
+command has ≥3 tests and CI has been stable for 10 pushes. 0.3.0 releases
+after a field-soak cycle against beta1.
+
+**T012 `ContextResolver` refactor is deliberately out of this milestone** —
+it opens the 0.4.x cycle instead. Blast-radius of a whole-binary refactor
+is wrong for a beta-cycle change.
 
 ### T020: Migrate Path Completion To Instruction-Based (DONE)
 
@@ -321,20 +334,23 @@ All items shipped across 0.3.0-alpha1 through alpha3:
 5. ~~T022 Crane-based Nix build~~ (alpha3)
 6. ~~T017 phase 1: archive + finish regression pins~~ (alpha3)
 
-## Suggested Next Sprint (0.4.x)
+## Suggested Next Sprint (0.3.0-alpha4 — stabilization)
 
-Shortest route to next visible value, ordered by risk/reward:
+Shortest route to a shippable 0.3.0, ordered by risk/reward:
 
-1. **T012 `ContextResolver` refactor** — collapses the single biggest source
-   of alpha-over-alpha bug churn. Every session in the last 3 alphas has
-   found a defect in this area.
-2. **T017 phase 2** — close the remaining single-test lifecycle commands
-   (`schedule`, `check`, `recent`, `finish` error paths).
-3. **T021 toolchain pinning** — one-commit hygiene fix; prevents the fmt
-   drift class from recurring.
-4. **T013 `ctf path --cd` / `ctf add --cd` review** — low risk, already
+1. **T017 phase 2** — close the remaining single-test lifecycle commands
+   (`schedule`, `check`, `recent`, `finish` error paths). Pure test
+   additions; no API change. **Required for beta1 cut.**
+2. **T021 toolchain pinning** — one-commit hygiene fix; prevents the fmt
+   drift class from recurring. **Required for beta1 cut.**
+3. **T013 `ctf path --cd` / `ctf add --cd` review** — low risk, already
    escape-hardened (`3d2eb79` escape-single-quotes fix); a docs pass + two
-   wrapper examples in README finishes it.
-5. **T018 completion verification** — alpha3 added 10 unit tests covering
+   wrapper examples in README finishes it. **Ships with alpha4 or beta1.**
+4. **T018 completion verification** — alpha3 added 10 unit tests covering
    the completers; adding a shell-integration smoke test (actually invoke
-   `compgen`/`compadd` from bash) is the remaining bit.
+   `compgen`/`compadd` from bash) is the remaining bit. **Optional for beta1.**
+
+Deferred past 0.3.0:
+
+- **T012 `ContextResolver` refactor** — opens 0.4.x. Whole-binary refactor
+  is wrong shape for a stabilization beta.

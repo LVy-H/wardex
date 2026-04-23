@@ -115,14 +115,22 @@ Primary outcome: releases and shell features are easy to install and verify.
 
 - Releases are repeatable and documented without relying on tribal knowledge. **Met for Nix path; partial for Cargo path.**
 
-## Suggested Next Backlog (0.4.x)
+## Suggested Next Backlog (0.3.0-alpha4 → beta1 → 0.3.0)
 
-0.3.x items 1–3 from the original backlog all shipped. Current priorities:
+0.3.x feature work is implemented across alpha1–alpha3; the remaining work
+to reach stable **0.3.0** is test depth + hygiene, not new features.
 
-1. **T012** `ContextResolver` refactor — collapses the recurring context-bug
-   surface that has produced one defect per alpha for the last three alphas.
-2. **T017 phase 2** — close remaining single-test lifecycle commands.
-3. **T021** toolchain pin — one commit, prevents the fmt/clippy drift class.
-4. **T013** `ctf path --cd` / `add --cd` README wrappers — low-risk docs pass.
-5. **T018** completion smoke test — actually invoke `compgen`/`compadd`
-   from a Bash test to verify end-to-end.
+1. **T017 phase 2** — close remaining single-test lifecycle commands
+   (`schedule`, `check`, `recent`, `finish` error paths). Required for
+   beta1 cut.
+2. **T021** toolchain pin — one commit, prevents the fmt/clippy drift class.
+   Required for beta1 cut.
+3. **T013** `ctf path --cd` / `add --cd` README wrappers — low-risk docs
+   pass; ships with alpha4 or beta1.
+4. **T018** completion smoke test — invoke `compgen`/`compadd` from a Bash
+   test to verify end-to-end. Optional for beta1.
+
+Deferred to 0.4.x (post-0.3.0-stable):
+
+- **T012** `ContextResolver` refactor — whole-binary refactor, wrong shape
+  for a stabilization beta. Opens 0.4.x.

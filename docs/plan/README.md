@@ -16,22 +16,26 @@ Based on the repository review:
 
 ## Near-Term Product Focus
 
-The original focus on CTF+shell integration is now largely delivered. Current
-focus is the **0.4.x quality buffer**:
+0.3.x feature work is implemented across alpha1–alpha3. Current focus is
+**stabilizing to 0.3.0** — not starting 0.4.x. Per
+[`../../CHANGELOG.md`](../../CHANGELOG.md) versioning policy, 0.3.x still
+needs alpha4 (test depth) → beta1 (feature freeze) → field-soak → 0.3.0
+stable release.
 
-- **Collapse the context-resolution surface** (`ContextResolver` refactor,
-  T012): every alpha since 0.3-alpha1 has found a fresh bug in per-command
-  context-resolution code. One shared resolver with unit tests ends the
-  pattern.
 - **Close the lifecycle-test gap** (T017 phase 2): `archive` + `finish` got
   regression tests in alpha3; `schedule`, `check`, `recent`, and `finish`
-  error paths still have only smoke coverage.
+  error paths still have only smoke coverage. Required for beta1 cut.
 - **Toolchain hygiene** (T021): devshell-vs-CI drift cost 4 red CI runs in
-  alpha3. Pin both sides or enforce alignment via CI.
+  alpha3. Pin both sides or enforce alignment via CI. Required for beta1 cut.
+- **Shell-wrapper docs** (T013): README pass adding Bash/Zsh wrapper
+  examples for `ctf path --cd` / `ctf add --cd`. Code is already
+  escape-hardened (`3d2eb79`); this is documentation only.
 
 Backlog items to preserve but not prioritize yet:
 
-- Delay broader workspace-manager expansion until the 0.4.x buffer lands.
+- **T012 `ContextResolver` refactor** is deferred to 0.4.x. It touches every
+  command's resolution code — wrong shape for a stabilization beta.
+- Broader workspace-manager expansion stays deferred until 0.4.x.
 - Per-category challenge templates — deferred per `long-term-strategy.md`
   (user demand unclear; existing `.challenge.json` covers the metadata half).
 
@@ -47,11 +51,11 @@ Backlog items to preserve but not prioritize yet:
 ## Planning Order — Current Status
 
 1. ~~Phase 0: define the supported CTF workflow and shell integration contract.~~ **(alpha4–alpha6)**
-2. ~~Phase 1: harden CTF lifecycle commands and context resolution.~~ **(alpha7–beta1; phase-2 hardening in 0.4.x)**
+2. ~~Phase 1: harden CTF lifecycle commands and context resolution.~~ **(alpha7–beta1; phase-2 hardening in 0.3.x stabilization)**
 3. ~~Phase 2: ship first-class shell completion, wrappers, and navigation helpers.~~ **(alpha6 → 0.3-alpha3)**
-4. ~~Phase 3: polish templates, writeups, and power-user workflows.~~ **(0.3-alpha1 through 0.3-alpha3)**
-5. Phase 3.5: quality & context buffer — `ContextResolver` refactor, test depth, toolchain hygiene. **(active — 0.4.x)**
-6. Phase 4: revisit broader workspace features only after the CTF path is excellent. **(future)**
+4. ~~Phase 3: polish templates, writeups, and power-user workflows — features implemented.~~ **(0.3-alpha1 through 0.3-alpha3)**
+5. **Phase 3 stabilization**: test-depth + toolchain hygiene, then beta1, then field-soak, then **0.3.0 stable release**. **(active)**
+6. Phase 4: `ContextResolver` refactor + selective broader workspace features. **(future, 0.4.x)**
 
 ## Documents In This Folder
 

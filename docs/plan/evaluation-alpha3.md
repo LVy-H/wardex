@@ -7,7 +7,10 @@ remaining items in [`task-list.md`](task-list.md). Written 2026-04-23 at commit
 ## Shipped against the 0.3.x strategy
 
 All five original 0.3.x themes from [`long-term-strategy.md`](long-term-strategy.md) line 15
-are now shipped:
+are **implemented in code**. The 0.3.x line is still in alpha (0.3.0-alpha3).
+Per the versioning policy in [`../../CHANGELOG.md`](../../CHANGELOG.md), the
+stable 0.3.0 release still requires: alpha4 (test-depth additions) → beta1
+(feature freeze) → field-soak → 0.3.0 cut.
 
 | Theme | Commits | Shipped in |
 |---|---|---|
@@ -115,30 +118,50 @@ From [`task-list.md`](task-list.md), with current ranking:
 - **T018 — Completion verification**: alpha3 already added 8 unit tests for the
   completion helpers. Dynamic completion has adequate coverage for its size.
 
-## Recommended next phase: T017 hardening
+## Recommended stabilization path: alpha4 → beta1 → 0.3.0
 
-The gap analysis points at the same target twice — through test coverage
-(`finish`/`archive` have 1 test each) and through risk model (those two
-commands are the most destructive in the binary).
+The gap analysis points at test coverage — `finish`/`archive` had 1 test
+each at the start of alpha3; `schedule`/`check`/`recent` still do. These
+are the destructive lifecycle commands where regression coverage matters
+most. Stabilization-appropriate work: pure test additions and hygiene.
 
-Concretely for the next alpha:
+### alpha4: test-depth + toolchain pin
 
-1. Add ≥5 tests covering `finish` (dry-run, `--no-archive`, grace-period
-   behaviour, event with unsolved challenges, happy path vs sad path).
-2. Add ≥4 tests covering `archive` (rename vs copy+delete, target-exists,
-   metadata-preservation, cross-event collision).
-3. Add ≥3 tests covering `schedule`/`check`/`recent` where existing single
-   tests are smoke-only.
-4. If coverage reveals actual defects, fix them in follow-up commits within
-   the same alpha.
+1. **T017 phase 2** — Add coverage to reach ≥3 tests per CTF command:
+   - `finish`: end-time metadata write, no-git-repo path, unsolved-events path
+   - `schedule`: update an existing schedule, both date orders
+   - `check`: expired event, soon-to-expire, empty CTF root
+   - `recent`: multi-event cycling, 5-entry cap enforcement
+   - `import`: cross-device fallback (rename fails → copy+delete)
+2. **T021** — Pin devshell and CI rust toolchains to the same version.
+   Prevent recurrence of the 4-run red-CI cycle from alpha3.
+3. **T013** — README pass adding Bash/Zsh wrapper examples for
+   `ctf path --cd` / `ctf add --cd` (code is already escape-hardened).
 
-After that: fold T012 into an alpha5, since that's a refactor with semantic
-risk and deserves a clear gate rather than being bundled with test work.
+### beta1 cut
 
-## Exit criteria for next alpha (0.3.0-alpha4)
+When:
 
-- `finish` and `archive` each have ≥5 and ≥4 tests respectively.
-- No CTF command has only 1 integration test.
-- Any defects uncovered during test-writing have paired fix commits.
+- Every CTF command has ≥3 integration tests.
+- CI goes ≥10 consecutive pushes green without toolchain-drift breakage.
+- Docs (`docs/ctf-lifecycle.md`, `docs/shell-output-contracts.md`) match
+  current code.
+- No new features accepted into this branch — bug fixes only.
+
+### 0.3.0 release cut
+
+When beta1 has soaked for one field-use cycle (a real CTF event or
+equivalent) with zero regression reports.
+
+### Deferred to 0.4.x (post-0.3.0)
+
+- **T012 `ContextResolver` refactor**: whole-binary refactor with semantic
+  risk. Wrong shape for a beta cycle; opens 0.4.x instead.
+
+## Exit criteria for alpha4
+
+- Every CTF command has ≥3 integration tests; no command left at 1 test.
 - CI remains green end-to-end.
-- `cargo clippy -- -D warnings` passes under the current stable toolchain.
+- `cargo clippy -- -D warnings` passes under the pinned toolchain.
+- Any defects uncovered during test-writing have paired fix commits in
+  the same alpha.
