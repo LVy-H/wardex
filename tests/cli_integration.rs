@@ -1315,6 +1315,128 @@ fn test_ctf_archive_moves_event() {
 
 #[test]
 #[serial_test::serial]
+fn test_ctf_archive_fails_on_unknown_event() {
+    // Archiving a non-existent event must fail cleanly with a helpful error,
+    // not silently no-op. Critical for the end-of-day flow where the user
+    // may mistype an event name.
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "archive", "DoesNotExistCTF"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not found").or(predicate::str::contains("Event")));
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_archive_matches_partial_name() {
+    // `archive_event` uses `.contains(name)` substring matching so users
+    // can type `archive Defcon` instead of `archive 2026_Defcon`. Pin the
+    // behaviour so a refactor can't silently regress it.
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "PartialMatchCTF"])
+        .assert()
+        .success();
+
+    // Use only part of the event name; archive should still find it
+    env.cmd()
+        .args(["ctf", "archive", "Partial"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let remaining_events = fs::read_dir(&ctf_root)
+        .map(|rd| rd.filter_map(|e| e.ok()).count())
+        .unwrap_or(0);
+    assert_eq!(
+        remaining_events, 0,
+        "Event should have been moved out of ctf_root"
+    );
+
+    let archives = env.path().join("4_Archives/CTFs");
+    let has_archived = fs::read_dir(&archives)
+        .map(|rd| {
+            rd.filter_map(|e| e.ok()).any(|year_dir| {
+                fs::read_dir(year_dir.path())
+                    .map(|sub| {
+                        sub.filter_map(|e| e.ok())
+                            .any(|e| e.file_name().to_string_lossy().contains("PartialMatchCTF"))
+                    })
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+    assert!(
+        has_archived,
+        "Partial-name archive should have moved the event into archives"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn test_ctf_finish_no_archive_preserves_event_location() {
+    // `--no-archive` must skip the archival step so users can commit+clean
+    // without relocating the event dir. Previously untested — if someone
+    // refactors `finish_event` and conflates the branches, everyone who
+    // wanted "clean + commit but stay here" gets their event moved.
+    let env = TestEnv::new();
+    env.setup_workspace();
+    env.create_config();
+
+    env.cmd()
+        .args(["ctf", "init", "NoArchiveCTF"])
+        .assert()
+        .success();
+
+    let ctf_root = env.path().join("1_Projects/CTFs");
+    let event_dir = fs::read_dir(&ctf_root)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().contains("NoArchiveCTF"))
+        .expect("event dir should exist after init")
+        .path();
+
+    // Init a git repo so `finish` can commit without aborting
+    for args in [
+        vec!["init"],
+        vec!["config", "user.name", "Test User"],
+        vec!["config", "user.email", "test@example.com"],
+    ] {
+        let _ = std::process::Command::new("git")
+            .args(&args)
+            .current_dir(&event_dir)
+            .output();
+    }
+
+    env.cmd()
+        .args(["ctf", "finish", "--no-archive", "--force"])
+        .assert()
+        .success();
+
+    assert!(
+        event_dir.exists(),
+        "--no-archive must leave the event at its original location"
+    );
+
+    let archives = env.path().join("4_Archives/CTFs");
+    let archived_count = fs::read_dir(&archives)
+        .map(|rd| rd.filter_map(|e| e.ok()).count())
+        .unwrap_or(0);
+    assert_eq!(
+        archived_count, 0,
+        "--no-archive must not create any archive year directory"
+    );
+}
+
+#[test]
+#[serial_test::serial]
 fn test_ctf_solve_legacy_writes_flag() {
     let env = TestEnv::new();
     env.setup_workspace();
