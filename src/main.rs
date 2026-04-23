@@ -20,7 +20,13 @@ use wardex::tui;
 #[command(version)]
 #[command(about = "Ward & index your workspace - CTF management, project organization, and more.", long_about = None)]
 struct Cli {
-    #[arg(long, value_name = "FILE", help = "Path to config file", value_hint = ValueHint::FilePath)]
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Path to config file",
+        value_hint = ValueHint::FilePath,
+        add = ArgValueCompleter::new(ctf::completions::file_path_completer)
+    )]
     config: Option<PathBuf>,
 
     #[command(subcommand)]
@@ -65,7 +71,11 @@ enum CtfCommands {
     List,
     /// smart import a challenge archive
     Import {
-        #[arg(help = "Path to challenge zip/tar", value_hint = ValueHint::FilePath)]
+        #[arg(
+            help = "Path to challenge zip/tar",
+            value_hint = ValueHint::FilePath,
+            add = ArgValueCompleter::new(ctf::completions::file_path_completer)
+        )]
         file: PathBuf,
         #[arg(short, long, help = "Category (web, pwn, etc.)")]
         category: Option<String>,
@@ -258,7 +268,11 @@ enum Commands {
     Status,
     /// [experimental] Search for flags recursively
     Search {
-        #[arg(default_value = ".", value_hint = ValueHint::AnyPath)]
+        #[arg(
+            default_value = ".",
+            value_hint = ValueHint::AnyPath,
+            add = ArgValueCompleter::new(ctf::completions::any_path_completer)
+        )]
         path: PathBuf,
         #[arg(short, long)]
         pattern: Option<String>,
@@ -273,7 +287,10 @@ enum Commands {
     Dashboard,
     /// [experimental] Quick file/project info
     Info {
-        #[arg(value_hint = ValueHint::AnyPath)]
+        #[arg(
+            value_hint = ValueHint::AnyPath,
+            add = ArgValueCompleter::new(ctf::completions::any_path_completer)
+        )]
         path: Option<PathBuf>,
     },
     /// Manage configuration

@@ -30,6 +30,97 @@ fn expand_tilde(raw: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
+/// Path completer for `PathBuf` args (`ctf import`, `--config`, `search`,
+/// `info`).
+///
+/// Replaces clap_complete's built-in path completer so we can handle a
+/// bare `~` properly. Upstream (clap_complete 4.6, `custom.rs:298`) only
+/// recognises `~` when it's the *parent* of the typed word — so `~/foo<TAB>`
+/// works, but `~<TAB>` returns empty and zsh then falls back to POSIX
+/// user-home completion, listing every `/etc/passwd` account.
+///
+/// Behaviour:
+/// * `~`           → suggest `~/` (one candidate; TAB expands, user continues)
+/// * `~/`, `~/foo` → list `$HOME` contents, keeping the `~/` prefix intact
+/// * `/abs/foo`    → list matching entries under the absolute path
+/// * `rel/foo`, `foo`, `""` → list matching entries under cwd
+///
+/// Directories always included (so the user can descend) and get a
+/// trailing `/`. Files are filtered by `keep_file` — pass `|_| true` for
+/// AnyPath semantics, `|p| p.is_file()` for file-only args.
+fn complete_path(
+    current: &OsStr,
+    keep_file: impl Fn(&std::path::Path) -> bool,
+) -> Vec<CompletionCandidate> {
+    let raw = current.to_string_lossy();
+
+    // Bare `~` → nudge into file completion instead of zsh user-name fallback.
+    if raw == "~" {
+        return vec![CompletionCandidate::new("~/")];
+    }
+
+    let (dir_part, file_part) = match raw.rfind('/') {
+        Some(idx) => (&raw[..=idx], &raw[idx + 1..]),
+        None => ("", raw.as_ref()),
+    };
+
+    let search_root: PathBuf = if dir_part.is_empty() {
+        std::env::current_dir()
+            .ok()
+            .unwrap_or_else(|| PathBuf::from("."))
+    } else if let Some(rest) = dir_part.strip_prefix("~/") {
+        let Some(home) = dirs::home_dir() else {
+            return Vec::new();
+        };
+        // rest is like "Downloads/"; trim trailing `/` for clean join.
+        home.join(rest.trim_end_matches('/'))
+    } else if dir_part.starts_with('/') {
+        PathBuf::from(dir_part)
+    } else {
+        let Ok(cwd) = std::env::current_dir() else {
+            return Vec::new();
+        };
+        cwd.join(dir_part)
+    };
+
+    let Ok(entries) = std::fs::read_dir(&search_root) else {
+        return Vec::new();
+    };
+
+    let mut results: Vec<CompletionCandidate> = entries
+        .flatten()
+        .filter_map(|entry| {
+            let name_os = entry.file_name();
+            let name = name_os.to_string_lossy();
+            if !name.starts_with(file_part) {
+                return None;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                Some(CompletionCandidate::new(format!("{}{}/", dir_part, name)))
+            } else if keep_file(&path) {
+                Some(CompletionCandidate::new(format!("{}{}", dir_part, name)))
+            } else {
+                None
+            }
+        })
+        .collect();
+    results.sort_by(|a, b| a.get_value().cmp(b.get_value()));
+    results
+}
+
+/// Complete any path (files or directories). Used for `search` and `info`
+/// where either is acceptable.
+pub fn any_path_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    complete_path(current, |_| true)
+}
+
+/// Complete file paths (directories shown for descent, non-files filtered).
+/// Used for `ctf import` and `--config` where the final value must be a file.
+pub fn file_path_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    complete_path(current, |p| p.is_file())
+}
+
 /// Resolve the CTF root directory from explicit instruction.
 ///
 /// Precedence:
@@ -306,6 +397,51 @@ mod tests {
             results.is_empty(),
             "no active event means no guess — user must `wardex ctf use <event>` first"
         );
+    }
+
+    #[test]
+    fn path_completer_bare_tilde_suggests_home_slash() {
+        // Regression: without this, zsh falls back to user-home (~user)
+        // completion and lists every /etc/passwd account.
+        let results = any_path_completer(OsStr::new("~"));
+        let names: Vec<String> = results
+            .into_iter()
+            .map(|c| c.get_value().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["~/".to_string()]);
+    }
+
+    #[test]
+    fn path_completer_tilde_slash_lists_home_entries() {
+        // `~/<TAB>` should produce candidates prefixed with `~/`.
+        let results = any_path_completer(OsStr::new("~/"));
+        // Home always has *something*; assert the shape rather than content.
+        assert!(
+            !results.is_empty(),
+            "home directory should have at least one entry"
+        );
+        for cand in &results {
+            let v = cand.get_value().to_string_lossy();
+            assert!(v.starts_with("~/"), "expected `~/` prefix, got {:?}", v);
+        }
+    }
+
+    #[test]
+    fn path_completer_file_filter_hides_non_files() {
+        // file_path_completer must still include directories (so the user
+        // can descend) but filter out non-regular-file leafs.
+        let td = tempfile::tempdir().unwrap();
+        std::fs::create_dir(td.path().join("sub")).unwrap();
+        std::fs::write(td.path().join("plain.txt"), b"").unwrap();
+
+        let prefix = format!("{}/", td.path().display());
+        let results = file_path_completer(OsStr::new(&prefix));
+        let names: Vec<String> = results
+            .into_iter()
+            .map(|c| c.get_value().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.iter().any(|n| n.ends_with("/sub/")));
+        assert!(names.iter().any(|n| n.ends_with("/plain.txt")));
     }
 
     #[test]
