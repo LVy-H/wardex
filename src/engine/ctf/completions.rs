@@ -446,7 +446,11 @@ mod tests {
             names
         );
         for name in &names {
-            assert!(name.starts_with("~/"), "expected `~/` prefix, got {:?}", name);
+            assert!(
+                name.starts_with("~/"),
+                "expected `~/` prefix, got {:?}",
+                name
+            );
         }
     }
 
