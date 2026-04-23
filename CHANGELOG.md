@@ -57,6 +57,28 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.3.0-alpha3] - 2026-04-23
+
+### Summary
+
+Shipping two follow-ups from alpha2 user feedback: a long-standing
+`~<TAB>` completion bug that leaked `/etc/passwd` contents into
+terminals, and a build-system migration that makes flake consumers
+stop recompiling the world on every wardex bump.
+
+### Fixed
+
+| Area | Fix |
+|------|-----|
+| `~<TAB>` leaking user list | `wardex ctf import ~<TAB>` used to show every `/etc/passwd` account (nixbld*, systemd-*, sddm, …) because clap_complete returned empty for bare `~` and zsh fell back to POSIX user-home completion. Added a wardex-owned path completer that recognises bare `~` and suggests `~/`, plus covers `~/foo`, `/abs/foo`, and cwd-relative paths with the same prefix preserved through the emitted candidates. |
+
+### Changed
+
+| Area | Change |
+|------|--------|
+| Nix build | Migrated from `rustPlatform.buildRustPackage` to `ipetkov/crane`. Dependency crates are now built in a separate derivation keyed by `Cargo.lock` + toolchain hash; source-only changes to wardex reuse the cached deps. Downstream `nh os switch` on wardex-bumps is typically 80–90% faster. Devshell unchanged. |
+| `.gitignore` | `result`, `result-*` (nix build symlinks) added. |
+
 ## [0.3.0-alpha2] - 2026-04-23
 
 ### Summary

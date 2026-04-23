@@ -53,7 +53,7 @@
         commonArgs = {
           inherit src nativeBuildInputs buildInputs;
           pname = "wardex";
-          version = "0.3.0-alpha2";
+          version = "0.3.0-alpha3";
           strictDeps = true;
           OPENSSL_NO_VENDOR = 1;
         };
