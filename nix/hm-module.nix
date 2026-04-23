@@ -60,8 +60,8 @@ in
       source <(COMPLETE=bash ${cfg.package}/bin/wardex)
     '';
 
-    programs.zsh.initExtra = mkIf cfg.enableZshIntegration ''
+    programs.zsh.initContent = mkIf cfg.enableZshIntegration (mkAfter ''
       source <(COMPLETE=zsh ${cfg.package}/bin/wardex)
-    '';
+    '');
   };
 }

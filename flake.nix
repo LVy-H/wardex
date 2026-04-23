@@ -40,7 +40,7 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "wardex";
-            version = "0.3.0-alpha1";
+            version = "0.3.0-alpha2";
 
             src = ./.;
 

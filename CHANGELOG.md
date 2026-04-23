@@ -57,6 +57,32 @@ Schema version history:
 | 0 (implicit) | Pre-alpha4 | No schema_version field. flag.txt for flags. |
 | 1 | 0.2.0-alpha4 | `.challenge.json` with schema_version, status, flag, solved_by, note, imported_from, shelved_at |
 
+## [0.3.0-alpha2] - 2026-04-23
+
+### Summary
+
+Tab-completion hardening. Fixes a broken `~`-prefix path completion, migrates
+the Home Manager module off the deprecated `programs.zsh.initExtra`, and
+rewrites the CTF completion helpers to be instruction-based — completions now
+reflect explicit configuration (`config.yaml`, `wardex ctf use <event>`) rather
+than silently falling back to hard-coded guesses.
+
+### Fixed
+
+| Area | Fix |
+|------|-----|
+| Path completion | `~/Downloads/x<TAB>` no longer produces garbled output. Added `ValueHint::FilePath` / `AnyPath` to `ctf import`, `--config`, `search`, and `info` so clap_complete routes through its tilde-aware path completer. |
+| Home Manager module | `programs.zsh.initExtra` → `programs.zsh.initContent` with `lib.mkAfter`, silencing the Home Manager deprecation warning. |
+| Category completion | Case-sensitivity inconsistency removed — `PW<TAB>` now matches `pwn/` like the other completers. |
+
+### Changed
+
+| Area | Change |
+|------|--------|
+| `challenge_completer` | No longer silently picks the lexically-largest event directory when no active event is set. Returns empty; user must run `wardex ctf use <event>`. |
+| `category_completer` | Reads `config.ctf.default_categories` instead of a hard-coded six-category list. Returns empty if no config and no active event. |
+| `resolve_ctf_root` | Replaces hand-rolled YAML scan with `Config::load()` — honors `paths.ctf_root` exactly as the main binary does. `WX_PATHS_CTF_ROOT` now tilde-expands. |
+
 ## [0.3.0-alpha1] - 2026-04-10
 
 ### Summary

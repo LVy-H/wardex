@@ -3,7 +3,7 @@
 //! Focused on CTF management.
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::engine::ArgValueCompleter;
 use clap_complete::Shell;
 use log::{error, info, warn};
@@ -20,7 +20,7 @@ use wardex::tui;
 #[command(version)]
 #[command(about = "Ward & index your workspace - CTF management, project organization, and more.", long_about = None)]
 struct Cli {
-    #[arg(long, value_name = "FILE", help = "Path to config file")]
+    #[arg(long, value_name = "FILE", help = "Path to config file", value_hint = ValueHint::FilePath)]
     config: Option<PathBuf>,
 
     #[command(subcommand)]
@@ -65,7 +65,7 @@ enum CtfCommands {
     List,
     /// smart import a challenge archive
     Import {
-        #[arg(help = "Path to challenge zip/tar")]
+        #[arg(help = "Path to challenge zip/tar", value_hint = ValueHint::FilePath)]
         file: PathBuf,
         #[arg(short, long, help = "Category (web, pwn, etc.)")]
         category: Option<String>,
@@ -258,7 +258,7 @@ enum Commands {
     Status,
     /// [experimental] Search for flags recursively
     Search {
-        #[arg(default_value = ".")]
+        #[arg(default_value = ".", value_hint = ValueHint::AnyPath)]
         path: PathBuf,
         #[arg(short, long)]
         pattern: Option<String>,
@@ -272,7 +272,10 @@ enum Commands {
     /// [experimental] Launch interactive TUI dashboard
     Dashboard,
     /// [experimental] Quick file/project info
-    Info { path: Option<PathBuf> },
+    Info {
+        #[arg(value_hint = ValueHint::AnyPath)]
+        path: Option<PathBuf>,
+    },
     /// Manage configuration
     Config {
         #[command(subcommand)]

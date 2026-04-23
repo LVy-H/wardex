@@ -1,70 +1,54 @@
 //! Dynamic completion helpers for shell tab-completion.
 //!
-//! These functions run at TAB-time without full Config access,
-//! so they resolve the CTF root from config files or defaults.
-//! They must never panic — return empty Vec on any error.
+//! Completion is instruction-based: it reflects what the user has explicitly
+//! configured (via `config.yaml` and `wardex ctf use …`). When we don't have
+//! an unambiguous instruction, we return empty rather than guessing — a bad
+//! TAB suggestion is worse than no suggestion.
+//!
+//! Contract: these functions run at TAB-time and must never panic. Any error
+//! (missing config, malformed state, IO failure) silently degrades to empty.
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use clap_complete::engine::CompletionCandidate;
 
-/// Resolve the CTF root directory from environment or defaults.
+use crate::config::Config;
+
+/// Expand a leading `~` or `~/…` to the user's home directory.
+/// Any other value is returned unchanged.
+fn expand_tilde(raw: &str) -> PathBuf {
+    if let Some(rest) = raw.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    } else if raw == "~" {
+        if let Some(home) = dirs::home_dir() {
+            return home;
+        }
+    }
+    PathBuf::from(raw)
+}
+
+/// Resolve the CTF root directory from explicit instruction.
 ///
-/// Tries in order:
-/// 1. `WX_PATHS_CTF_ROOT` env var (explicit override)
-/// 2. `WX_PATHS_WORKSPACE`/1_Projects/CTFs
-/// 3. `~/.config/wardex/config.yaml` workspace field / 1_Projects/CTFs
-/// 4. `~/workspace/1_Projects/CTFs`
+/// Precedence:
+/// 1. `WX_PATHS_CTF_ROOT` env var (explicit override, tilde-expanded).
+/// 2. The user's merged `Config` (honors `paths.ctf_root` and
+///    `paths.workspace` exactly as the main binary does).
+///
+/// Returns `None` if no config is loadable or the resolved path does not
+/// exist — no hard-coded fallback to `~/workspace/1_Projects/CTFs`.
 fn resolve_ctf_root() -> Option<PathBuf> {
-    // 1. Direct CTF root override
     if let Ok(dir) = std::env::var("WX_PATHS_CTF_ROOT") {
-        let path = PathBuf::from(dir);
+        let path = expand_tilde(&dir);
         if path.exists() {
             return Some(path);
         }
     }
 
-    // 2. Workspace env var
-    if let Ok(ws) = std::env::var("WX_PATHS_WORKSPACE") {
-        let ctf_root = PathBuf::from(ws).join("1_Projects").join("CTFs");
-        if ctf_root.exists() {
-            return Some(ctf_root);
-        }
-    }
-
-    // 3. Try reading config file for workspace path
-    if let Some(config_dir) = dirs::config_dir() {
-        let config_path = config_dir.join("wardex").join("config.yaml");
-        if config_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&config_path) {
-                // Simple YAML extraction — avoid pulling in full config machinery at TAB-time
-                for line in content.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.starts_with("workspace:") {
-                        if let Some(val) = trimmed.strip_prefix("workspace:") {
-                            let val = val.trim().trim_matches('"').trim_matches('\'');
-                            if !val.is_empty() {
-                                let ctf_root = PathBuf::from(val).join("1_Projects").join("CTFs");
-                                if ctf_root.exists() {
-                                    return Some(ctf_root);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. Default: ~/workspace/1_Projects/CTFs
-    let home = dirs::home_dir()?;
-    let ctf_root = home.join("workspace").join("1_Projects").join("CTFs");
-    if ctf_root.exists() {
-        return Some(ctf_root);
-    }
-
-    None
+    let root = Config::load().ok()?.ctf_root();
+    root.exists().then_some(root)
 }
 
 /// Resolve the active event root from global state.
@@ -123,25 +107,15 @@ pub fn event_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 
 /// Complete challenge paths as `category/challenge` within the active event.
 /// Used for `ctf path <event> <challenge>` and similar commands.
+///
+/// Requires an explicit active event (set via `wardex ctf use <event>`).
+/// If none is set, returns empty — we never guess a "latest" event because
+/// that would silently complete against the wrong one.
 pub fn challenge_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     let prefix = current.to_string_lossy();
 
-    let event_root = match resolve_active_event() {
-        Some(path) if path.exists() => path,
-        _ => match resolve_ctf_root() {
-            Some(root) => match std::fs::read_dir(&root) {
-                Ok(entries) => match entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.path().is_dir())
-                    .max_by_key(|e| e.file_name())
-                {
-                    Some(latest) => latest.path(),
-                    None => return Vec::new(),
-                },
-                Err(_) => return Vec::new(),
-            },
-            None => return Vec::new(),
-        },
+    let Some(event_root) = resolve_active_event() else {
+        return Vec::new();
     };
 
     let mut challenges = Vec::new();
@@ -181,8 +155,13 @@ pub fn challenge_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 
 /// Complete category names for commands like `ctf add <cat/name>`.
 ///
-/// If the user has not yet typed a `/`, suggests category directories
-/// from the active event or falls back to defaults.
+/// Priority:
+/// 1. Directories inside the active event (reflects what already exists).
+/// 2. `config.ctf.default_categories` from the user's config.
+///
+/// If neither source yields a candidate we return empty — no hard-coded
+/// category list. Users get completion from explicit configuration, not
+/// from assumptions baked into the binary.
 pub fn category_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     let prefix = current.to_string_lossy();
 
@@ -191,7 +170,9 @@ pub fn category_completer(current: &OsStr) -> Vec<CompletionCandidate> {
         return Vec::new();
     }
 
-    // Try active event root from global state
+    let lowered_prefix = prefix.to_lowercase();
+
+    // 1. Try active event root from global state
     if let Some(root) = resolve_active_event() {
         if let Ok(entries) = std::fs::read_dir(&root) {
             let results: Vec<_> = entries
@@ -200,7 +181,7 @@ pub fn category_completer(current: &OsStr) -> Vec<CompletionCandidate> {
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
                     if !name.starts_with('.')
-                        && (prefix.is_empty() || name.starts_with(prefix.as_ref()))
+                        && (prefix.is_empty() || name.to_lowercase().starts_with(&lowered_prefix))
                     {
                         Some(CompletionCandidate::new(format!("{}/", name)))
                     } else {
@@ -215,10 +196,15 @@ pub fn category_completer(current: &OsStr) -> Vec<CompletionCandidate> {
         }
     }
 
-    // Fall back to default categories
-    ["web", "pwn", "crypto", "rev", "misc", "forensics"]
+    // 2. Fall back to user-configured default categories. No hard-coded list.
+    let Some(config) = Config::load().ok() else {
+        return Vec::new();
+    };
+    config
+        .ctf
+        .default_categories
         .iter()
-        .filter(|c| prefix.is_empty() || c.starts_with(prefix.as_ref()))
+        .filter(|c| prefix.is_empty() || c.to_lowercase().starts_with(&lowered_prefix))
         .map(|c| CompletionCandidate::new(format!("{}/", c)))
         .collect()
 }
@@ -226,36 +212,83 @@ pub fn category_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
-    #[test]
-    #[serial_test::serial]
-    fn event_completer_returns_empty_when_no_root() {
-        // With no CTF root on disk, should return empty
-        std::env::set_var("WX_PATHS_CTF_ROOT", "/nonexistent/path/for/testing");
+    /// Redirect XDG_CONFIG_HOME and the WARDEX state file to a temp dir so
+    /// each test starts from a known, empty configuration slate.
+    ///
+    /// Also clears the `WX_*` env vars that Config::load reads via the
+    /// `config` crate's environment source — otherwise bleed-over from a
+    /// prior test can spoof arbitrary config values.
+    fn isolate_env() -> TempDir {
+        let td = TempDir::new().expect("tempdir");
+        std::env::set_var("XDG_CONFIG_HOME", td.path());
+        std::env::set_var("WARDEX_STATE_FILE", td.path().join("state.json"));
         std::env::remove_var("WX_PATHS_WORKSPACE");
-        let results = event_completer(OsStr::new(""));
-        // May or may not be empty depending on default paths,
-        // but at least it shouldn't panic
-        let _ = results;
         std::env::remove_var("WX_PATHS_CTF_ROOT");
+        std::env::remove_var("WX_CTF_DEFAULT_CATEGORIES");
+        td
+    }
+
+    /// Write a minimal config.yaml into the isolated XDG config dir.
+    fn write_config(td: &TempDir, body: &str) {
+        let dir = td.path().join("wardex");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.yaml"), body).unwrap();
     }
 
     #[test]
     #[serial_test::serial]
-    fn category_completer_returns_defaults_when_no_event() {
-        std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
+    fn event_completer_returns_empty_when_no_config() {
+        let _td = isolate_env();
+        let results = event_completer(OsStr::new(""));
+        assert!(
+            results.is_empty(),
+            "no config means no guess — empty, not a hard-coded root"
+        );
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn category_completer_returns_empty_when_no_config_no_event() {
+        let _td = isolate_env();
         let results = category_completer(OsStr::new(""));
-        assert!(!results.is_empty(), "should return default categories");
-        std::env::remove_var("WARDEX_STATE_FILE");
+        assert!(
+            results.is_empty(),
+            "without an active event AND without a config, we do not fabricate categories"
+        );
     }
 
     #[test]
     #[serial_test::serial]
-    fn category_completer_filters_by_prefix() {
-        std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
+    fn category_completer_reads_config_default_categories() {
+        let td = isolate_env();
+        write_config(
+            &td,
+            "paths:\n  workspace: /tmp\nctf:\n  default_categories: [foo, bar, baz]\n",
+        );
+        let results = category_completer(OsStr::new(""));
+        let names: Vec<String> = results
+            .into_iter()
+            .map(|c| c.get_value().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["foo/", "bar/", "baz/"]);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn category_completer_filters_config_categories_case_insensitively() {
+        let td = isolate_env();
+        write_config(
+            &td,
+            "paths:\n  workspace: /tmp\nctf:\n  default_categories: [Pwn, Web, Crypto]\n",
+        );
         let results = category_completer(OsStr::new("pw"));
-        assert_eq!(results.len(), 1);
-        std::env::remove_var("WARDEX_STATE_FILE");
+        let names: Vec<String> = results
+            .into_iter()
+            .map(|c| c.get_value().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["Pwn/"]);
     }
 
     #[test]
@@ -266,13 +299,21 @@ mod tests {
 
     #[test]
     #[serial_test::serial]
-    fn challenge_completer_returns_empty_when_no_event() {
-        std::env::set_var("WARDEX_STATE_FILE", "/nonexistent/state.json");
-        std::env::set_var("WX_PATHS_CTF_ROOT", "/nonexistent/path/for/testing");
-        std::env::remove_var("WX_PATHS_WORKSPACE");
+    fn challenge_completer_returns_empty_when_no_active_event() {
+        let _td = isolate_env();
         let results = challenge_completer(OsStr::new(""));
-        let _ = results;
-        std::env::remove_var("WARDEX_STATE_FILE");
-        std::env::remove_var("WX_PATHS_CTF_ROOT");
+        assert!(
+            results.is_empty(),
+            "no active event means no guess — user must `wardex ctf use <event>` first"
+        );
+    }
+
+    #[test]
+    fn expand_tilde_expands_home_prefix() {
+        let home = dirs::home_dir().expect("home dir available for this test");
+        assert_eq!(expand_tilde("~/foo/bar"), home.join("foo").join("bar"));
+        assert_eq!(expand_tilde("~"), home);
+        assert_eq!(expand_tilde("/abs/path"), PathBuf::from("/abs/path"));
+        assert_eq!(expand_tilde("relative"), PathBuf::from("relative"));
     }
 }
