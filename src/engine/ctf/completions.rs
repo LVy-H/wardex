@@ -412,17 +412,41 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn path_completer_tilde_slash_lists_home_entries() {
         // `~/<TAB>` should produce candidates prefixed with `~/`.
+        // Stub $HOME so the test is hermetic — works identically on a
+        // developer box, CI, and inside the Nix build sandbox (where
+        // $HOME is a minimal empty tempdir by default).
+        let td = tempfile::tempdir().unwrap();
+        std::fs::create_dir(td.path().join("Downloads")).unwrap();
+        std::fs::write(td.path().join("notes.txt"), b"").unwrap();
+        let prev_home = std::env::var_os("HOME");
+        std::env::set_var("HOME", td.path());
+
         let results = any_path_completer(OsStr::new("~/"));
-        // Home always has *something*; assert the shape rather than content.
+        let names: Vec<String> = results
+            .into_iter()
+            .map(|c| c.get_value().to_string_lossy().into_owned())
+            .collect();
+
+        match prev_home {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+
         assert!(
-            !results.is_empty(),
-            "home directory should have at least one entry"
+            names.iter().any(|n| n == "~/Downloads/"),
+            "expected `~/Downloads/` in {:?}",
+            names
         );
-        for cand in &results {
-            let v = cand.get_value().to_string_lossy();
-            assert!(v.starts_with("~/"), "expected `~/` prefix, got {:?}", v);
+        assert!(
+            names.iter().any(|n| n == "~/notes.txt"),
+            "expected `~/notes.txt` in {:?}",
+            names
+        );
+        for name in &names {
+            assert!(name.starts_with("~/"), "expected `~/` prefix, got {:?}", name);
         }
     }
 
