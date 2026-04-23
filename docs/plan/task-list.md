@@ -87,35 +87,45 @@ Goal: complete the command tree and common options.
 
 Status: Completed in 0.2.0-alpha6. Uses `clap_complete` for subcommand and flag completion. Bash and Zsh supported.
 
-### T011: Implement Dynamic Completion For Events And Categories
+### T011: Implement Dynamic Completion For Events And Categories (DONE)
 
 Goal: reduce typing during real event work.
 
-Deliverables:
+Status: Completed in 0.2.0-alpha8 (`c0fea17`). `event_completer` and
+`category_completer` live in `src/engine/ctf/completions.rs`. Rewritten to
+instruction-based (no silent fallback to guessed events) in 0.3.0-alpha2.
 
-- event-name completion for `ctf use`, `ctf path`, and related commands
-- category completion for `ctf add`, `ctf import` where applicable
-- sensible behavior when no active event exists
+Deliverables shipped:
 
-Depends on:
-
-- T009 (DONE)
+- ~~event-name completion for `ctf use`, `ctf path`, and related commands~~
+- ~~category completion for `ctf add`, `ctf import` where applicable~~
+- ~~sensible behavior when no active event exists~~ (returns empty per
+  instruction-based refactor)
 
 ## Milestone 3: Context And Navigation Hardening
 
-### T012: Make Context Resolution Predictable
+### T012: Make Context Resolution Predictable (IN PROGRESS — target 0.4.x)
 
 Goal: ensure shell wrappers and completions can rely on Wardex behavior.
 
+Status: partially addressed alpha-by-alpha as bugs surface (alpha2 tilde
+handling, alpha2 completer silent-fallback removal, alpha3 `~<TAB>` fix).
+Each fix is correct but local — the broader refactor into a single
+`ContextResolver` module is still outstanding.
+
 Deliverables:
 
-- document and enforce precedence: local directory > global state > latest event
-- improve ambiguity errors
-- avoid silent wrong-target selection
+- single `ContextResolver` type owning `local CWD > global state > explicit arg
+  > latest event` precedence — one implementation, one unit-test suite.
+- replace per-command resolvers in `engine/ctf/event.rs::find_event_root` /
+  `get_active_event_root` / `resolve.rs` with `ContextResolver` calls.
+- improve ambiguity errors (explicit arg vs active context mismatch).
+- document the resolver in `docs/shell-output-contracts.md` and
+  `docs/ctf-lifecycle.md`.
 
 Depends on:
 
-- T001
+- T001 (DONE)
 
 ### T013: Harden `ctf path --cd` And `ctf add --cd`
 
@@ -133,20 +143,24 @@ Depends on:
 - T006
 - T012
 
-### T014: Dynamic Challenge-Path Completion
+### T014: Dynamic Challenge-Path Completion (DONE)
 
 Goal: complete real challenge targets, not just command names.
 
-Deliverables:
+Status: Completed in 0.3.0-alpha1 (`acbaf67`) via `challenge_completer` in
+`src/engine/ctf/completions.rs`. Rewritten to instruction-based (returns empty
+when no active event instead of guessing "latest") in 0.3.0-alpha2.
 
-- challenge-path completion based on current or active event context
-- support category/name flows cleanly
-- handle missing context gracefully
+Deliverables shipped:
 
-Depends on:
+- ~~challenge-path completion based on current or active event context~~
+- ~~support category/name flows cleanly~~
+- ~~handle missing context gracefully~~ (returns empty, nudges user toward
+  `wardex ctf use <event>`)
 
-- T011
-- T012
+Note: the "handle missing context gracefully" deliverable interacts with
+T012 — the current implementation is correct but duplicates the resolution
+logic. T012 will DRY this.
 
 ## Milestone 4: CTF Workflow Polish
 
@@ -182,22 +196,33 @@ Depends on:
 
 ## Milestone 5: Tests And Release Readiness
 
-### T017: Expand CTF Integration Coverage
+### T017: Expand CTF Integration Coverage (PHASE 1 DONE — PHASE 2 OPEN, target 0.4.x)
 
 Goal: protect the flagship workflow with regression tests.
 
-Deliverables:
+Phase 1 (alpha3, `26efc36`):
+- ~~`archive` fails cleanly on unknown event~~
+- ~~`archive` matches partial event names~~
+- ~~`finish --no-archive` preserves event location~~
 
-- tests for `ctf path`, `ctf add --cd`, `ctf import`, `ctf shelve`, `ctf finish`
-- tests for challenge metadata lifecycle
-- tests for context resolution and fuzzy matching
-- tests for shell-oriented output behavior
+Phase 2 (open):
+- `finish` writes `end_time` to `.ctf_meta.json` on success.
+- `finish` without a git repo: skips git clean, still archives.
+- `finish` on an event with unsolved challenges: no implicit block.
+- `schedule` beyond smoke: update existing schedule, dates in both orders.
+- `check` beyond smoke: expired event, soon-to-expire event, no events.
+- `recent` beyond smoke: multi-event cycling, 5-entry cap enforcement.
+- `import` cross-device fallback path (rename fails → copy+delete).
+- Context-resolution edge cases (covered by T012 unit tests).
+
+Exit criterion: every CTF command has ≥3 integration tests; no single-test
+commands remain.
 
 Depends on:
 
-- T003
-- T005
-- T012
+- T003 (DONE)
+- T005 (DONE)
+- T012 (in progress — supplies the context-resolution test seam)
 - T013
 
 ### T018: Add Completion Verification
@@ -216,21 +241,61 @@ Depends on:
 - T011
 - T014
 
-### T019: Add CI For The Flagship Path
+### T019: Add CI For The Flagship Path (DONE — stable as of alpha3)
 
 Goal: make the CTF-shell surface safe to evolve.
 
-Deliverables:
+Status: `.github/workflows/ci.yml` exists and runs `fmt --check`,
+`clippy -- -D warnings`, and `test` on every push/PR to `main`. Green as of
+`75aacae` after the alpha3 fmt/clippy fixes.
 
-- `cargo fmt --check`
-- `cargo clippy --all-targets --all-features`
-- `cargo test`
-- completion verification if practical
+Deliverables shipped:
 
-Depends on:
+- ~~`cargo fmt --check`~~
+- ~~`cargo clippy --all-targets --all-features -- -D warnings`~~
+- ~~`cargo test`~~
 
-- T017
-- T018
+Follow-up (folded into 0.4.x operational-hygiene workstream, not a new task):
+
+- pin the CI rust toolchain or keep `flake.lock` `rust-overlay` current to
+  prevent devshell drift.
+
+## Milestone 6: 0.4.x Quality & Context Buffer (Active)
+
+Added at the 0.3.0-alpha3 retrospective. See
+[`evaluation-alpha3.md`](evaluation-alpha3.md) for the rationale.
+
+### T020: Migrate Path Completion To Instruction-Based (DONE)
+
+Goal: eliminate silent-fallback behaviour in the shell-completion layer.
+
+Status: Completed in 0.3.0-alpha2 (crane commit bundle). All four completer
+helpers now return empty when they lack explicit instruction instead of
+guessing. Documented in-tree as the file header of
+`src/engine/ctf/completions.rs`.
+
+### T021: Pin Toolchain To Prevent Devshell-CI Drift
+
+Goal: stop the "fmt and clippy differ between local and CI" failure mode that
+cost 4 consecutive red CI runs in alpha3.
+
+Deliverables (pick one, document the chosen path):
+
+- Pin `dtolnay/rust-toolchain@<version>` in `.github/workflows/ci.yml` and
+  update it deliberately (requires coordinated devshell bump), OR
+- Keep `flake.lock` `rust-overlay` current as a hard rule; enforce by adding
+  a CI step that diffs `rustc --version` between devshell and CI host.
+
+Exit criterion: 10 consecutive CI pushes green without toolchain-drift
+breakage.
+
+### T022: Migrate To Crane For Incremental Nix Builds (DONE)
+
+Goal: stop rebuilding all ~200 dep crates on every wardex source change.
+
+Status: Completed in 0.3.0-alpha3 (`06e6955`). Dependency crates now cache
+across source changes via `craneLib.buildDepsOnly`. `nh os switch` on
+wardex bumps is typically 80–90% faster.
 
 ## Completed First Sprint
 
@@ -245,11 +310,31 @@ All items shipped across 0.2.0-alpha4 through alpha6:
 7. ~~T009 Add a completion entry point~~ (alpha6)
 8. ~~T010 Implement static completion for commands and flags~~ (alpha6)
 
-## Suggested Next Sprint
+## Completed 0.3.x Sprint
 
-Shortest route to next visible value:
+All items shipped across 0.3.0-alpha1 through alpha3:
 
-1. T011 Implement dynamic completion for events and categories
-2. T012 Make context resolution predictable
-3. T013 Harden `ctf path --cd` and `ctf add --cd`
-4. T017 Expand CTF integration coverage
+1. ~~T011 Dynamic completion for events and categories~~ (alpha8 + alpha2 refactor)
+2. ~~T014 Dynamic challenge-path completion~~ (0.3-alpha1, refactored alpha2)
+3. ~~T019 CI for the flagship path~~ (now stable as of alpha3 `75aacae`)
+4. ~~T020 Instruction-based completion refactor~~ (alpha2)
+5. ~~T022 Crane-based Nix build~~ (alpha3)
+6. ~~T017 phase 1: archive + finish regression pins~~ (alpha3)
+
+## Suggested Next Sprint (0.4.x)
+
+Shortest route to next visible value, ordered by risk/reward:
+
+1. **T012 `ContextResolver` refactor** — collapses the single biggest source
+   of alpha-over-alpha bug churn. Every session in the last 3 alphas has
+   found a defect in this area.
+2. **T017 phase 2** — close the remaining single-test lifecycle commands
+   (`schedule`, `check`, `recent`, `finish` error paths).
+3. **T021 toolchain pinning** — one-commit hygiene fix; prevents the fmt
+   drift class from recurring.
+4. **T013 `ctf path --cd` / `ctf add --cd` review** — low risk, already
+   escape-hardened (`3d2eb79` escape-single-quotes fix); a docs pass + two
+   wrapper examples in README finishes it.
+5. **T018 completion verification** — alpha3 added 10 unit tests covering
+   the completers; adding a shell-integration smoke test (actually invoke
+   `compgen`/`compadd` from bash) is the remaining bit.

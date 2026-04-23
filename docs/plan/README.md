@@ -16,13 +16,24 @@ Based on the repository review:
 
 ## Near-Term Product Focus
 
-For now, planning effort should concentrate on the CTF experience and shell integration:
+The original focus on CTF+shell integration is now largely delivered. Current
+focus is the **0.4.x quality buffer**:
 
-- Make the event and challenge lifecycle feel smooth under time pressure.
-- Make navigation and command discovery shell-friendly.
-- Support tab completion and completion-aware subcommands for event names, categories, and challenge paths.
-- Reduce context friction between the current directory, active event state, and shell wrappers.
-- Delay broader workspace-manager expansion until the flagship CTF flow is excellent.
+- **Collapse the context-resolution surface** (`ContextResolver` refactor,
+  T012): every alpha since 0.3-alpha1 has found a fresh bug in per-command
+  context-resolution code. One shared resolver with unit tests ends the
+  pattern.
+- **Close the lifecycle-test gap** (T017 phase 2): `archive` + `finish` got
+  regression tests in alpha3; `schedule`, `check`, `recent`, and `finish`
+  error paths still have only smoke coverage.
+- **Toolchain hygiene** (T021): devshell-vs-CI drift cost 4 red CI runs in
+  alpha3. Pin both sides or enforce alignment via CI.
+
+Backlog items to preserve but not prioritize yet:
+
+- Delay broader workspace-manager expansion until the 0.4.x buffer lands.
+- Per-category challenge templates — deferred per `long-term-strategy.md`
+  (user demand unclear; existing `.challenge.json` covers the metadata half).
 
 ## Planning Principles
 
@@ -33,18 +44,21 @@ For now, planning effort should concentrate on the CTF experience and shell inte
 - Treat docs, tests, and command UX as product features, not cleanup work.
 - Introduce larger bets like TUI polish or "Wardex Brain" only after the CLI contract is dependable.
 
-## Suggested Planning Order
+## Planning Order — Current Status
 
-1. Phase 0: define the supported CTF workflow and shell integration contract.
-2. Phase 1: harden CTF lifecycle commands and context resolution.
-3. Phase 2: ship first-class shell completion, wrappers, and navigation helpers.
-4. Phase 3: polish templates, writeups, and power-user workflows.
-5. Phase 4: revisit broader workspace features only after the CTF path is excellent.
+1. ~~Phase 0: define the supported CTF workflow and shell integration contract.~~ **(alpha4–alpha6)**
+2. ~~Phase 1: harden CTF lifecycle commands and context resolution.~~ **(alpha7–beta1; phase-2 hardening in 0.4.x)**
+3. ~~Phase 2: ship first-class shell completion, wrappers, and navigation helpers.~~ **(alpha6 → 0.3-alpha3)**
+4. ~~Phase 3: polish templates, writeups, and power-user workflows.~~ **(0.3-alpha1 through 0.3-alpha3)**
+5. Phase 3.5: quality & context buffer — `ContextResolver` refactor, test depth, toolchain hygiene. **(active — 0.4.x)**
+6. Phase 4: revisit broader workspace features only after the CTF path is excellent. **(future)**
 
 ## Documents In This Folder
 
+- [`evaluation-alpha3.md`](evaluation-alpha3.md): **current status snapshot** — what's shipped, what's gap, next-phase recommendation as of 0.3.0-alpha3.
 - [`review.md`](review.md): repository assessment and planning rationale
 - [`roadmap.md`](roadmap.md): phased release and upgrade path
+- [`long-term-strategy.md`](long-term-strategy.md): version roadmap 0.2–0.6+ with per-version themes
 - [`workstreams.md`](workstreams.md): concrete engineering tracks, backlog themes, and success measures
 - [`ctf-shell-plan.md`](ctf-shell-plan.md): focused plan for CTF workflow and shell-native ergonomics
 - [`task-list.md`](task-list.md): prioritized execution backlog and suggested issue order

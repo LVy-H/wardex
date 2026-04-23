@@ -22,7 +22,7 @@ Status: **All deliverables shipped across alpha4–alpha6.**
 - Completion targets and shell integration behavior are specified before implementation work expands.
 - User-facing docs communicate the CTF-first product direction clearly.
 
-## Phase 1: CTF Lifecycle Hardening (Complete)
+## Phase 1: CTF Lifecycle Hardening (Complete, with ongoing phase 2)
 
 Goal: make the core event and challenge workflow reliable enough for active competition use.
 
@@ -40,7 +40,7 @@ Goal: make the core event and challenge workflow reliable enough for active comp
 - Common CTF mistakes produce actionable errors and recovery hints.
 - Path-printing commands are safe and predictable for shell use.
 
-## Phase 2: Shell-First Integration (Complete)
+## Phase 2: Shell-First Integration (Complete, with path-completion polish in alpha3)
 
 Goal: make Wardex feel native in the terminal instead of merely callable from it.
 
@@ -58,27 +58,69 @@ Goal: make Wardex feel native in the terminal instead of merely callable from it
 - ~~Bash and Zsh users can install completion without reverse-engineering the repo.~~
 - Shell wrappers no longer feel like fragile add-ons.
 
-## Phase 3: CTF Workflow Polish
+## Phase 3: CTF Workflow Polish (Complete — 0.3.0-alpha1 through alpha3)
 
 Goal: improve depth and speed for repeat CTF usage once the shell layer is solid.
 
+Status: **all strategic deliverables shipped.** See
+[`evaluation-alpha3.md`](evaluation-alpha3.md) for the detailed per-commit map.
+
+### Shipped deliverables
+
+- ~~Rich writeup assembly with `.challenge.json` metadata and flag redaction.~~ (alpha1, `0ac5876`)
+- ~~Config validation (`wardex config validate`).~~ (alpha1, `c0f143e`)
+- ~~Status enrichment: solver, notes preview, summary line, JSON output.~~ (alpha1, `209a41e`)
+- ~~Multi-event context handling: `ctf use -`, `ctf recent`.~~ (alpha1, `d5caf87`)
+- ~~Challenge-path dynamic completion.~~ (alpha1, `acbaf67`)
+- ~~Path-arg tilde handling (`~`, `~/…`) across all `PathBuf` args.~~ (alpha3, `880ca31`)
+- ~~Instruction-based completers — no silent fallback to guessed events/categories.~~ (alpha2)
+- ~~Crane-based Nix build — dep-cache survives source changes.~~ (alpha3, `06e6955`)
+
+### Intentionally deferred
+
+- Per-category challenge templates: user demand unclear; `.challenge.json`
+  already covers the metadata half. Re-open in 0.5+ if field feedback asks.
+- TUI role: frozen per `long-term-strategy.md`. Current CLI+editor workflow
+  is the right seam for CTF operations.
+
+### Exit Criteria — Met
+
+- Repetitive competition tasks feel streamlined (shelve auto-mode, status JSON,
+  challenge-path completion).
+- Power users can tailor shell behavior and categories via `config.yaml` without
+  patching source.
+- The CTF experience is a cohesive product.
+
+## Phase 3.5: Quality & Context Buffer (Active — 0.4.x)
+
+Not in the original plan. Added after the alpha3 retrospective surfaced a
+pattern: every alpha cycle has turned up a fresh bug in the shared
+context-resolution code path, and the lifecycle commands with destructive
+semantics (`finish`, `archive`) have thinner test coverage than the
+interactive commands.
+
 ### Deliverables
 
-- Improve command output consistency across `status`, `info`, `writeup`, and shelve flows.
-- Standardize challenge templates and per-category scaffolding behavior.
-- Add richer writeup assembly and notes conventions using `.challenge.json` metadata.
-- Add structured config options for categories, templates, blacklist/whitelist patterns, and shell behavior.
-- Clarify whether the TUI has a role in CTF operations or remains optional.
+- **T012 — `ContextResolver` refactor**: one resolver, one precedence chain
+  (`local CWD > global state > explicit arg > latest event`), one set of unit
+  tests. Today each command reimplements this locally.
+- **T017 phase 2 — lifecycle regression depth**: cover `finish` end-time
+  metadata; `schedule`, `check`, `recent` beyond smoke; `finish` without git
+  repo; `finish` on unsolved events.
+- **Operational hygiene**: pin the devshell-vs-CI toolchain to avoid the
+  fmt/clippy drift that caused 4 consecutive red CI runs in alpha3. Either
+  pin CI to a specific rust version (`dtolnay/rust-toolchain@1.95.0`) or
+  require `flake.lock` rust-overlay stay current and enforce via CI.
 
 ### Exit Criteria
 
-- Repetitive competition tasks feel streamlined instead of improvised.
-- Power users can tailor templates and shell behavior without patching the source.
-- The CTF experience feels like a cohesive product, not a bundle of commands.
+- All CTF lifecycle commands have ≥3 regression tests each.
+- Context-resolution code has a single owner (one module, unit-tested).
+- CI goes 10 consecutive pushes green without toolchain-drift breakage.
 
-## Phase 4: Broader Expansion
+## Phase 4: Broader Expansion (Future)
 
-Goal: revisit non-CTF expansion only after the flagship workflow is strong.
+Goal: revisit non-CTF expansion only after the quality-buffer work lands.
 
 ### Candidate Epics
 
@@ -95,7 +137,8 @@ Goal: revisit non-CTF expansion only after the flagship workflow is strong.
 
 ## Recommended Release Cadence
 
-- `0.2.x`: Shelve system, CTF contract, lifecycle hardening, and shell completion
-- `0.3.x`: CTF workflow polish and template/config depth
-- `0.4.x`: selective expansion beyond the flagship CTF path
-- `0.5.x+`: advanced capabilities after core stabilization
+- `0.2.x`: Shelve system, CTF contract, lifecycle hardening, and shell completion (shipped)
+- `0.3.x`: CTF workflow polish — writeup, status, multi-event, path completion (shipped)
+- `0.4.x`: Quality buffer — context resolver refactor + lifecycle test depth (active)
+- `0.5.x`: selective expansion beyond the flagship CTF path
+- `0.6.x+`: advanced capabilities after core stabilization

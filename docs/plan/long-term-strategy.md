@@ -1,18 +1,19 @@
 # Wardex Long-Term Strategy
 
-Based on codebase research conducted at 0.2.0-beta1.
+Originally drafted at 0.2.0-beta1. Refreshed at 0.3.0-alpha3 — see
+[`evaluation-alpha3.md`](evaluation-alpha3.md) for the detailed checkpoint.
 
 ## Version Roadmap
 
 | Version | Theme | Status |
 |---------|-------|--------|
 | **0.2.x** | Beta — CTF + shell reliability | **Shipped** |
-| **0.3.x** | CTF polish — writeup, config validation, status enrichment | Planned |
-| **0.4.x** | Buffer — field feedback, non-CTF enhancements | Planned |
+| **0.3.x** | CTF polish — writeup, config validation, status enrichment | **Shipped (alpha1–alpha3)** |
+| **0.4.x** | Quality & context buffer — field feedback, `ContextResolver` refactor, lifecycle test hardening | **Active** |
 | **0.5.x** | Non-CTF commands active support, team features | Planned |
 | **0.6+** | Expansion — web UI, cross-platform, advanced features | Future |
 
-## 0.3.x: CTF Workflow Polish
+## 0.3.x: CTF Workflow Polish (Shipped)
 
 ### Writeup Generation Improvements
 
@@ -59,11 +60,29 @@ Too early for a full plugin system. Instead:
 - Proof of concept: auto-run `checksec` for pwn challenges via config flag
 - Design RFC for 0.4+ if demand exists
 
-## 0.4.x: Buffer Release
+## 0.4.x: Quality & Context Buffer (Active)
 
-No pre-assigned theme. Absorbs fixes and workflow gaps from real competition use.
+The original plan called this a "buffer release" with no pre-assigned theme.
+After the alpha3 cycle, that slot is now partially defined by real debt
+surfaced from field feedback:
 
-Candidates if field feedback warrants:
+### Confirmed workstreams
+
+- **`ContextResolver` refactor (T012)**: current context resolution
+  (`local cwd > global state > latest event`) is reimplemented per-command.
+  Every alpha has found a fresh bug in this area (alpha2 `~/` handling, alpha2
+  silent-fallback in challenge completer, alpha3 zsh user-name fallback on
+  bare `~`). Collapse into one resolver + unit tests.
+- **Lifecycle test hardening (T017 phase 2)**: alpha3 pinned `archive`/`finish`
+  basics. Still open: `finish` end-time-metadata, `schedule`, `check`,
+  `recent`, the `finish` error paths when the event has no git repo / has
+  unsolved challenges.
+- **Operational hygiene**: devshell-vs-CI toolchain drift bit us in alpha3
+  (4 consecutive red CI runs). Either pin CI to a specific rust version or
+  keep the flake.lock rust-overlay pin current; pick one and document.
+
+### Buffer slots (if field feedback warrants)
+
 - Non-CTF command enhancements (cleaner --preview, status --stale)
 - Team member tracking basics (solved_by names, points field)
 - Web UI proof-of-concept (if TUI deemed insufficient)
