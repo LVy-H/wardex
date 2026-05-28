@@ -10,11 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Fast feedback: fmt + clippy via the flake devshell. Uses the exact same
-  # toolchain as the build job below, eliminating the rustc-version drift
-  # between CI and devshell that hit alpha2 → alpha3 (see
-  # docs/plan/evaluation-alpha3.md § "CI health").
-  lint:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,30 +22,23 @@ jobs:
       - uses: cachix/cachix-action@v17
         with:
           name: wardex
-          # On PRs from forks the token is unavailable; cachix-action falls
-          # back to read-only mode automatically, so the build still benefits
-          # from the cache but cannot push new derivations.
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix develop --accept-flake-config --command bash -c 'cargo fmt --check'
-      - run: nix develop --accept-flake-config --command bash -c 'cargo clippy --all-targets --all-features -- -D warnings'
+          # Don't pollute the cache with ephemeral PR-branch builds. Only
+          # canonical pushes to main / release branches populate Cachix —
+          # PRs read from it but don't write.
+          skipPush: ${{ github.event_name != 'push' }}
 
-  # Full build + tests via the flake. Pushes cargoArtifacts and the final
-  # wardex derivation to Cachix so end users / fresh machines fetch a
-  # prebuilt binary instead of compiling the dep graph from source.
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            accept-flake-config = true
-      - uses: cachix/cachix-action@v17
-        with:
-          name: wardex
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      # `nix flake check` builds checks.wardex which re-runs the integration
-      # test suite inside the build sandbox.
-      - run: nix flake check -L --accept-flake-config
-      - run: nix build -L --accept-flake-config
+      # Always: fmt + clippy + cargo test. Cheap (~2 min on warm cache);
+      # gives fast feedback on PRs without compiling the full dep graph
+      # inside the Nix sandbox.
+      - run: nix develop --command bash -c 'cargo fmt --check'
+      - run: nix develop --command bash -c 'cargo clippy --all-targets --all-features -- -D warnings'
+      - run: nix develop --command bash -c 'cargo test'
+
+      # Main / release only: full flake build that re-runs tests in the
+      # sandbox and publishes cargoArtifacts + the wardex derivation to
+      # Cachix. PRs skip this to keep iteration cheap.
+      - if: github.event_name == 'push'
+        run: nix flake check -L
+      - if: github.event_name == 'push'
+        run: nix build -L
