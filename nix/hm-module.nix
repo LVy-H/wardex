@@ -1,5 +1,10 @@
 { self }:
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -13,8 +18,8 @@ in
 
     package = mkOption {
       type = types.package;
-      default = self.packages.${pkgs.system}.default;
-      defaultText = literalExpression "flake.packages.\${pkgs.system}.default";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      defaultText = literalExpression "flake.packages.\${pkgs.stdenv.hostPlatform.system}.default";
       description = "The wardex package to install.";
     };
 
